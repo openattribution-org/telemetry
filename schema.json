@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openattribution.org/schema/v0.1/telemetry-session.json",
+  "title": "OpenAttribution Telemetry Session",
+  "description": "Schema for OpenAttribution telemetry sessions - tracking content attribution in AI agent interactions",
+  "type": "object",
+  "required": ["schema_version", "session_id", "mix_id", "started_at"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.1",
+      "description": "OpenAttribution schema version"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique session identifier"
+    },
+    "agent_id": {
+      "type": ["string", "null"],
+      "description": "Agent identifier for multi-agent systems"
+    },
+    "mix_id": {
+      "type": "string",
+      "description": "ContentMix identifier (which content collection was used)"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Session start timestamp (UTC)"
+    },
+    "ended_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Session end timestamp (UTC)"
+    },
+    "user_context": {
+      "$ref": "#/$defs/UserContext"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TelemetryEvent"
+      },
+      "description": "Ordered list of events in the session"
+    },
+    "outcome": {
+      "oneOf": [
+        { "$ref": "#/$defs/SessionOutcome" },
+        { "type": "null" }
+      ],
+      "description": "Final session outcome"
+    }
+  },
+  "$defs": {
+    "UserContext": {
+      "type": "object",
+      "description": "User context for personalization and segmentation",
+      "properties": {
+        "external_id": {
+          "type": ["string", "null"],
+          "description": "Opaque user identifier (not PII - use hashed/synthetic ID)"
+        },
+        "segments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "User segment labels (e.g., ['premium', 'returning'])"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional context attributes"
+        }
+      }
+    },
+    "TelemetryEvent": {
+      "type": "object",
+      "description": "Single telemetry event within a session",
+      "required": ["id", "type", "timestamp"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique event identifier"
+        },
+        "type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Event timestamp (UTC)"
+        },
+        "content_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "Associated content document UUID"
+        },
+        "product_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "Associated product UUID"
+        },
+        "turn": {
+          "oneOf": [
+            { "$ref": "#/$defs/ConversationTurn" },
+            { "type": "null" }
+          ],
+          "description": "Conversation turn data (for turn_started/turn_completed)"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional event-specific metadata"
+        }
+      }
+    },
+    "EventType": {
+      "type": "string",
+      "description": "Supported event types for telemetry tracking",
+      "enum": [
+        "content_retrieved",
+        "content_displayed",
+        "content_engaged",
+        "content_cited",
+        "turn_started",
+        "turn_completed",
+        "product_viewed",
+        "product_compared",
+        "cart_add",
+        "cart_remove",
+        "checkout_started",
+        "checkout_completed",
+        "checkout_abandoned"
+      ]
+    },
+    "ConversationTurn": {
+      "type": "object",
+      "description": "Conversation turn with privacy controls",
+      "required": ["privacy_level"],
+      "properties": {
+        "privacy_level": {
+          "$ref": "#/$defs/PrivacyLevel"
+        },
+        "query_text": {
+          "type": ["string", "null"],
+          "description": "User's query (full/summary levels only)"
+        },
+        "response_text": {
+          "type": ["string", "null"],
+          "description": "Agent's response (full/summary levels only)"
+        },
+        "query_intent": {
+          "oneOf": [
+            { "$ref": "#/$defs/IntentCategory" },
+            { "type": "null" }
+          ],
+          "description": "Classified intent category"
+        },
+        "response_type": {
+          "type": ["string", "null"],
+          "description": "Response classification (e.g., 'recommendation', 'explanation')"
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Detected topics/entities"
+        },
+        "content_ids_retrieved": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "description": "Content fetched to answer the query"
+        },
+        "content_ids_cited": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "description": "Content used/cited in response"
+        },
+        "query_tokens": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Query token count"
+        },
+        "response_tokens": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Response token count"
+        },
+        "model_id": {
+          "type": ["string", "null"],
+          "description": "Model identifier (e.g., 'claude-3-opus')"
+        }
+      }
+    },
+    "PrivacyLevel": {
+      "type": "string",
+      "description": "Privacy levels for conversation data sharing",
+      "enum": ["full", "summary", "intent", "minimal"]
+    },
+    "IntentCategory": {
+      "type": "string",
+      "description": "Standardized intent categories",
+      "enum": [
+        "product_research",
+        "comparison",
+        "how_to",
+        "troubleshooting",
+        "general_question",
+        "purchase_intent",
+        "price_check",
+        "availability_check",
+        "review_seeking",
+        "chitchat",
+        "other"
+      ]
+    },
+    "SessionOutcome": {
+      "type": "object",
+      "description": "Session outcome for attribution calculation",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/OutcomeType"
+        },
+        "value_amount": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Monetary value in minor currency units (cents, pence, yen)"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "default": "USD",
+          "description": "ISO 4217 currency code"
+        },
+        "products": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "description": "Product UUIDs involved in outcome"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional outcome details"
+        }
+      }
+    },
+    "OutcomeType": {
+      "type": "string",
+      "description": "Session outcome classifications",
+      "enum": ["conversion", "abandonment", "browse"]
+    }
+  }
+}
