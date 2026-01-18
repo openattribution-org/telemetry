@@ -1,14 +1,30 @@
 # OpenAttribution
 
-An open standard and Python SDK for tracking content attribution in AI agent interactions.
+An open standard for tracking content attribution in AI agent interactions.
 
-## Overview
+## What is OpenAttribution?
 
-OpenAttribution enables fair compensation for content creators when their content is used by AI agents to generate valuable responses. It provides:
+OpenAttribution is a cross-industry initiative to establish transparency in how AI agents use content. It provides:
 
 - **A standard schema** for telemetry events across the content lifecycle
 - **Privacy controls** for conversation data sharing
 - **Session-based tracking** linking content to user outcomes
+
+The goal: give publishers, brands, and platforms the signals needed to understand content influence and enable fair compensation - without mandating how that compensation works.
+
+### What OpenAttribution Is Not
+
+We keep the scope limited to attribution signals and transparency. OpenAttribution does **not**:
+
+- Establish compensation structures
+- Control or monetize content or attribution data
+- Define specific attribution algorithms
+
+Usage of the signals is up to the organizations and technologies that receive them.
+
+### Ecosystem Context
+
+OpenAttribution is designed to complement emerging standards like Google's [Universal Commerce Protocol (UCP)](https://github.com/Universal-Commerce-Protocol). Where UCP standardizes the transaction flow (discovery, checkout, payments), OpenAttribution provides the telemetry layer that captures content usage signals - enabling downstream attribution and compensation.
 
 ## Installation
 
@@ -27,11 +43,9 @@ uv add openattribution
 ```python
 import asyncio
 from uuid import uuid4
-from datetime import datetime, UTC
 
 from openattribution import (
     OpenAttributionClient,
-    TelemetryEvent,
     ConversationTurn,
     SessionOutcome,
     UserContext,
@@ -50,10 +64,11 @@ async def main():
         )
 
         # Record content retrieval
+        content_id = uuid4()
         await client.record_event(
             session_id=session_id,
             event_type="content_retrieved",
-            content_id=uuid4(),
+            content_id=content_id,
         )
 
         # Record a conversation turn with privacy controls
@@ -83,50 +98,7 @@ async def main():
 asyncio.run(main())
 ```
 
-## Schema Overview
-
-### Sessions
-
-A session represents a user's interaction with an AI agent:
-
-```python
-from openattribution import TelemetrySession
-
-session = TelemetrySession(
-    session_id=uuid4(),
-    mix_id="electronics-reviews",
-    agent_id="shopping-assistant",
-    started_at=datetime.now(UTC),
-    user_context=UserContext(segments=["returning"]),
-)
-```
-
-### Events
-
-Events track specific actions within a session:
-
-```python
-from openattribution import TelemetryEvent
-
-# Content was retrieved
-event = TelemetryEvent(
-    id=uuid4(),
-    type="content_retrieved",
-    timestamp=datetime.now(UTC),
-    content_id=article_uuid,
-)
-
-# Content was cited in response
-event = TelemetryEvent(
-    id=uuid4(),
-    type="content_cited",
-    timestamp=datetime.now(UTC),
-    content_id=article_uuid,
-    data={"citation_type": "direct_quote"},
-)
-```
-
-### Event Types
+## Event Types
 
 **Content Events:**
 - `content_retrieved` - Content fetched from source
@@ -143,42 +115,9 @@ event = TelemetryEvent(
 - `cart_add`, `cart_remove`
 - `checkout_started`, `checkout_completed`, `checkout_abandoned`
 
-### Conversation Turns
+## Privacy Levels
 
-Capture query/response data with privacy controls:
-
-```python
-from openattribution import ConversationTurn
-
-# Full text (highest trust)
-turn = ConversationTurn(
-    privacy_level="full",
-    query_text="What are the best noise-cancelling headphones?",
-    response_text="Based on recent reviews, the Sony WH-1000XM5...",
-    content_ids_retrieved=[article1_id, article2_id],
-    content_ids_cited=[article1_id],
-)
-
-# Intent only (privacy-preserving)
-turn = ConversationTurn(
-    privacy_level="intent",
-    query_intent="comparison",
-    response_type="recommendation",
-    topics=["headphones", "noise-cancelling"],
-    content_ids_cited=[article1_id],
-)
-
-# Minimal (just metadata)
-turn = ConversationTurn(
-    privacy_level="minimal",
-    content_ids_retrieved=[article1_id, article2_id],
-    content_ids_cited=[article1_id],
-    query_tokens=12,
-    response_tokens=150,
-)
-```
-
-### Privacy Levels
+Control what conversation data is shared based on trust relationships:
 
 | Level | Text | Intent | Topics | Tokens | Content IDs |
 |-------|------|--------|--------|--------|-------------|
@@ -187,26 +126,11 @@ turn = ConversationTurn(
 | `intent` | No | Yes | Yes | Yes | Yes |
 | `minimal` | No | No | No | Yes | Yes |
 
-### Outcomes
-
-Capture session results for attribution:
-
-```python
-from openattribution import SessionOutcome
-
-outcome = SessionOutcome(
-    type="conversion",  # or "abandonment", "browse"
-    value_cents=4999,
-    currency="USD",
-    products=[product_uuid],
-)
-```
-
 ## Integration Patterns
 
 ### MCP Tool Integration
 
-When building an MCP server, expose attribution as a tool:
+Expose attribution as an MCP tool:
 
 ```python
 @server.tool()
@@ -231,62 +155,22 @@ async def record_attribution(
 
 ### Agent Integration
 
-For agents you build directly:
+For agents you build directly, see the full example in [SPECIFICATION.md](./SPECIFICATION.md).
 
-```python
-class AttributionAgent:
-    def __init__(self, attribution_client: OpenAttributionClient):
-        self.client = attribution_client
-        self.session_id = None
+## Documentation
 
-    async def start_conversation(self, user_context: UserContext):
-        self.session_id = await self.client.start_session(
-            mix_id="my-mix",
-            user_context=user_context,
-        )
+- [SPECIFICATION.md](./SPECIFICATION.md) - Full protocol specification
+- [schema.json](./schema.json) - JSON Schema for cross-language implementation
 
-    async def process_turn(self, query: str) -> str:
-        # Record turn start
-        await self.client.record_event(
-            session_id=self.session_id,
-            event_type="turn_started",
-            turn=ConversationTurn(
-                privacy_level="full",
-                query_text=query,
-            )
-        )
+## Get Involved
 
-        # Retrieve content
-        content_ids = await self.retrieve_content(query)
-        for cid in content_ids:
-            await self.client.record_event(
-                session_id=self.session_id,
-                event_type="content_retrieved",
-                content_id=cid,
-            )
+OpenAttribution is a community effort. We welcome:
 
-        # Generate response
-        response, cited_ids = await self.generate_response(query, content_ids)
+- **Feedback** on the specification via [GitHub Issues](https://github.com/narrativai/openattribution/issues)
+- **Implementations** in other languages
+- **Use cases** we haven't considered
 
-        # Record turn completion
-        await self.client.record_event(
-            session_id=self.session_id,
-            event_type="turn_completed",
-            turn=ConversationTurn(
-                privacy_level="full",
-                query_text=query,
-                response_text=response,
-                content_ids_retrieved=content_ids,
-                content_ids_cited=cited_ids,
-            )
-        )
-
-        return response
-```
-
-## Specification
-
-For the complete specification, see [SPECIFICATION.md](./SPECIFICATION.md).
+For information about joining the OpenAttribution initiative, visit [openattribution.org](https://openattribution.org).
 
 ## License
 
