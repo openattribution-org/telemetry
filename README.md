@@ -4,29 +4,103 @@ An open standard for tracking content attribution in AI agent interactions.
 
 ## What is OpenAttribution?
 
-OpenAttribution is a cross-industry initiative to establish transparency in how AI agents use content. It provides:
+OpenAttribution is a cross-industry initiative of publishers, brands, and technology providers working towards transparency in how AI agents use content.
 
-- **A standard schema** for telemetry events across the content lifecycle
-- **Privacy controls** for conversation data sharing
-- **Session-based tracking** linking content to user outcomes
+The standard defines **what signals to emit**, not how to use them. Attribution algorithms, compensation structures, and business arrangements remain the domain of individual organizations.
 
-The goal: give publishers, brands, and platforms the signals needed to understand content influence and enable fair compensation - without mandating how that compensation works.
+**What we provide:**
 
-### What OpenAttribution Is Not
+- A minimal, extensible schema for telemetry events across the content lifecycle
+- Privacy tiers for conversation data sharing based on trust relationships
+- Session-based tracking linking content influence to user outcomes
 
-We keep the scope limited to attribution signals and transparency. OpenAttribution does **not**:
+**What we don't do:**
 
 - Establish compensation structures
 - Control or monetize content or attribution data
 - Define specific attribution algorithms
 
-Usage of the signals is up to the organizations and technologies that receive them.
+## Ecosystem Context
 
-### Ecosystem Context
+OpenAttribution complements emerging standards like Google's [Universal Commerce Protocol (UCP)](https://github.com/Universal-Commerce-Protocol).
 
-OpenAttribution is designed to complement emerging standards like Google's [Universal Commerce Protocol (UCP)](https://github.com/Universal-Commerce-Protocol). Where UCP standardizes the transaction flow (discovery, checkout, payments), OpenAttribution provides the telemetry layer that captures content usage signals - enabling downstream attribution and compensation.
+| Standard | Question It Answers |
+|----------|---------------------|
+| **UCP** | How does an agent complete a purchase? |
+| **OpenAttribution** | What content influenced that purchase? |
 
-## Installation
+Where UCP standardizes the transaction flow (discovery, checkout, payments), OpenAttribution provides the telemetry layer that captures content usage signals—enabling downstream attribution and compensation.
+
+## The Standard
+
+### Session Model
+
+A **Session** represents a bounded interaction between an end user and an AI agent:
+
+```
+Session
+├── started_at
+├── mix_id (content collection identifier)
+├── user_context (segments, attributes)
+├── events[]
+│   ├── content_retrieved
+│   ├── content_cited
+│   ├── turn_completed
+│   └── ...
+├── ended_at
+└── outcome (conversion / abandonment / browse)
+```
+
+### Event Types
+
+**Content Events** track the content lifecycle:
+
+| Event | Description |
+|-------|-------------|
+| `content_retrieved` | Content fetched from source |
+| `content_displayed` | Content shown to user |
+| `content_engaged` | User interacted with content |
+| `content_cited` | Content referenced in response |
+
+**Conversation Events** capture agent interactions:
+
+| Event | Description |
+|-------|-------------|
+| `turn_started` | User initiated a conversation turn |
+| `turn_completed` | Agent finished responding |
+
+**Commerce Events** enable purchase attribution:
+
+| Event | Description |
+|-------|-------------|
+| `product_viewed` | Product page viewed |
+| `product_compared` | Products compared |
+| `cart_add` / `cart_remove` | Cart modifications |
+| `checkout_started` | Checkout initiated |
+| `checkout_completed` | Purchase completed |
+| `checkout_abandoned` | Checkout abandoned |
+
+### Privacy Levels
+
+Control what conversation data is shared based on trust relationships:
+
+| Level | Query/Response Text | Intent | Topics | Tokens | Content IDs |
+|-------|---------------------|--------|--------|--------|-------------|
+| `full` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `summary` | Summarized | ✓ | ✓ | ✓ | ✓ |
+| `intent` | ✗ | ✓ | ✓ | ✓ | ✓ |
+| `minimal` | ✗ | ✗ | ✗ | ✓ | ✓ |
+
+### Documentation
+
+- **[SPECIFICATION.md](./SPECIFICATION.md)** — Full protocol specification
+- **[schema.json](./schema.json)** — JSON Schema for cross-language implementation
+
+## Reference Implementation (Python)
+
+A Python SDK is provided as a reference implementation.
+
+### Installation
 
 ```bash
 pip install openattribution
@@ -38,7 +112,7 @@ Or with uv:
 uv add openattribution
 ```
 
-## Quick Start
+### Quick Start
 
 ```python
 import asyncio
@@ -98,36 +172,6 @@ async def main():
 asyncio.run(main())
 ```
 
-## Event Types
-
-**Content Events:**
-- `content_retrieved` - Content fetched from source
-- `content_displayed` - Content shown to user
-- `content_engaged` - User interacted with content
-- `content_cited` - Content referenced in response
-
-**Conversation Events:**
-- `turn_started` - User initiated a conversation turn
-- `turn_completed` - Agent finished responding
-
-**Commerce Events:**
-- `product_viewed`, `product_compared`
-- `cart_add`, `cart_remove`
-- `checkout_started`, `checkout_completed`, `checkout_abandoned`
-
-## Privacy Levels
-
-Control what conversation data is shared based on trust relationships:
-
-| Level | Text | Intent | Topics | Tokens | Content IDs |
-|-------|------|--------|--------|--------|-------------|
-| `full` | Yes | Yes | Yes | Yes | Yes |
-| `summary` | Summarized | Yes | Yes | Yes | Yes |
-| `intent` | No | Yes | Yes | Yes | Yes |
-| `minimal` | No | No | No | Yes | Yes |
-
-## Integration Patterns
-
 ### MCP Tool Integration
 
 Expose attribution as an MCP tool:
@@ -153,15 +197,6 @@ async def record_attribution(
     return "Attribution recorded"
 ```
 
-### Agent Integration
-
-For agents you build directly, see the full example in [SPECIFICATION.md](./SPECIFICATION.md).
-
-## Documentation
-
-- [SPECIFICATION.md](./SPECIFICATION.md) - Full protocol specification
-- [schema.json](./schema.json) - JSON Schema for cross-language implementation
-
 ## Get Involved
 
 OpenAttribution is a community effort. We welcome:
@@ -174,4 +209,4 @@ For information about joining the OpenAttribution initiative, visit [openattribu
 
 ## License
 
-Apache 2.0 - see [LICENSE](./LICENSE) for details.
+Apache 2.0 — see [LICENSE](./LICENSE) for details.
