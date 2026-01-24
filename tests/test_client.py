@@ -1,4 +1,4 @@
-"""Tests for OpenAttribution client."""
+"""Tests for OpenAttribution telemetry client."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
@@ -7,9 +7,9 @@ from uuid import UUID, uuid4
 import httpx
 import pytest
 
-from openattribution import (
+from openattribution.telemetry import (
+    Client,
     ConversationTurn,
-    OpenAttributionClient,
     SessionOutcome,
     TelemetryEvent,
     UserContext,
@@ -19,7 +19,7 @@ from openattribution import (
 @pytest.fixture
 def client():
     """Create a test client."""
-    return OpenAttributionClient(
+    return Client(
         endpoint="https://api.example.com/telemetry",
         api_key="test-api-key",
     )
@@ -43,7 +43,7 @@ class TestClientInit:
 
     def test_client_init(self):
         """Test client initializes with correct settings."""
-        client = OpenAttributionClient(
+        client = Client(
             endpoint="https://api.example.com/telemetry/",
             api_key="my-key",
             timeout=60.0,
@@ -53,7 +53,7 @@ class TestClientInit:
 
     def test_client_strips_trailing_slash(self):
         """Test endpoint trailing slash is stripped."""
-        client = OpenAttributionClient(
+        client = Client(
             endpoint="https://api.example.com/",
             api_key="key",
         )
@@ -310,7 +310,7 @@ class TestContextManager:
         """Test client works as async context manager."""
         session_id = uuid4()
 
-        async with OpenAttributionClient(
+        async with Client(
             endpoint="https://api.example.com/telemetry",
             api_key="test-key",
         ) as client:

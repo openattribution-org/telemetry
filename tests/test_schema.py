@@ -1,9 +1,9 @@
-"""Tests for OpenAttribution schema models."""
+"""Tests for OpenAttribution telemetry schema models."""
 
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from openattribution import (
+from openattribution.telemetry import (
     ConversationTurn,
     EventType,
     IntentCategory,

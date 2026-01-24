@@ -1,132 +1,48 @@
-# OpenAttribution
+# OpenAttribution Telemetry
 
-An open standard for tracking content attribution in AI agent interactions.
+[![PyPI version](https://badge.fury.io/py/openattribution-telemetry.svg)](https://badge.fury.io/py/openattribution-telemetry)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+**SDK for AI content attribution telemetry - track what content influenced outcomes.**
+
+Part of the [OpenAttribution](https://openattribution.org) project.
 
 ## What is OpenAttribution?
 
-OpenAttribution is a cross-industry initiative of publishers, brands, and technology providers working towards transparency in how AI agents use content.
-
-The standard defines **what signals to emit**, not how to use them. Attribution algorithms, compensation structures, and business arrangements remain the domain of individual organizations.
-
-**What we provide:**
-
-- A minimal, extensible schema for telemetry events across the content lifecycle
-- Privacy tiers for conversation data sharing based on trust relationships
-- Session-based tracking linking content influence to user outcomes
-
-**What we don't do:**
-
-- Establish compensation structures
-- Control or monetize content or attribution data
-- Define specific attribution algorithms
-
-## Ecosystem Context
-
-OpenAttribution complements emerging standards like Google's [Universal Commerce Protocol (UCP)](https://github.com/Universal-Commerce-Protocol).
+OpenAttribution is a cross-industry initiative enabling transparency in how AI agents use content. The standard defines **what signals to emit**, not how to use them - attribution algorithms, compensation structures, and business arrangements remain your domain.
 
 | Standard | Question It Answers |
 |----------|---------------------|
-| **UCP** | How does an agent complete a purchase? |
-| **OpenAttribution** | What content influenced that purchase? |
+| **OpenAttribution Telemetry** | What content influenced this outcome? |
+| **[OpenAttribution AIMS](https://github.com/openattribution-org/aims)** | What can this AI legally access? |
 
-Where UCP standardizes the transaction flow (discovery, checkout, payments), OpenAttribution provides the telemetry layer that captures content usage signals—enabling downstream attribution and compensation.
-
-## The Standard
-
-### Session Model
-
-A **Session** represents a bounded interaction between an end user and an AI agent:
-
-```
-Session
-├── started_at
-├── mix_id (content collection identifier)
-├── user_context (segments, attributes)
-├── events[]
-│   ├── content_retrieved
-│   ├── content_cited
-│   ├── turn_completed
-│   └── ...
-├── ended_at
-└── outcome (conversion / abandonment / browse)
-```
-
-### Event Types
-
-**Content Events** track the content lifecycle:
-
-| Event | Description |
-|-------|-------------|
-| `content_retrieved` | Content fetched from source |
-| `content_displayed` | Content shown to user |
-| `content_engaged` | User interacted with content |
-| `content_cited` | Content referenced in response |
-
-**Conversation Events** capture agent interactions:
-
-| Event | Description |
-|-------|-------------|
-| `turn_started` | User initiated a conversation turn |
-| `turn_completed` | Agent finished responding |
-
-**Commerce Events** enable purchase attribution:
-
-| Event | Description |
-|-------|-------------|
-| `product_viewed` | Product page viewed |
-| `product_compared` | Products compared |
-| `cart_add` / `cart_remove` | Cart modifications |
-| `checkout_started` | Checkout initiated |
-| `checkout_completed` | Purchase completed |
-| `checkout_abandoned` | Checkout abandoned |
-
-### Privacy Levels
-
-Control what conversation data is shared based on trust relationships:
-
-| Level | Query/Response Text | Intent | Topics | Tokens | Content IDs |
-|-------|---------------------|--------|--------|--------|-------------|
-| `full` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `summary` | Summarized | ✓ | ✓ | ✓ | ✓ |
-| `intent` | ✗ | ✓ | ✓ | ✓ | ✓ |
-| `minimal` | ✗ | ✗ | ✗ | ✓ | ✓ |
-
-### Documentation
-
-- **[SPECIFICATION.md](./SPECIFICATION.md)** — Full protocol specification
-- **[schema.json](./schema.json)** — JSON Schema for cross-language implementation
-
-## Reference Implementation (Python)
-
-A Python SDK is provided as a reference implementation.
-
-### Installation
+## Installation
 
 ```bash
-pip install openattribution
+pip install openattribution-telemetry
 ```
 
 Or with uv:
 
 ```bash
-uv add openattribution
+uv add openattribution-telemetry
 ```
 
-### Quick Start
+## Quick Start
 
 ```python
 import asyncio
 from uuid import uuid4
 
-from openattribution import (
-    OpenAttributionClient,
+from openattribution.telemetry import (
+    Client,
     ConversationTurn,
     SessionOutcome,
     UserContext,
 )
 
 async def main():
-    async with OpenAttributionClient(
+    async with Client(
         endpoint="https://api.example.com/telemetry",
         api_key="your-api-key"
     ) as client:
@@ -164,7 +80,7 @@ async def main():
             session_id=session_id,
             outcome=SessionOutcome(
                 type="conversion",
-                value_amount=9999,
+                value_amount=9999,  # $99.99 in cents
                 currency="USD",
             )
         )
@@ -172,7 +88,65 @@ async def main():
 asyncio.run(main())
 ```
 
-### MCP Tool Integration
+## Session Model
+
+A **Session** represents a bounded interaction between an end user and an AI agent:
+
+```
+Session
+├── started_at
+├── mix_id (content collection identifier)
+├── user_context (segments, attributes)
+├── events[]
+│   ├── content_retrieved
+│   ├── content_cited
+│   ├── turn_completed
+│   └── ...
+├── ended_at
+└── outcome (conversion / abandonment / browse)
+```
+
+## Event Types
+
+**Content Events** track the content lifecycle:
+
+| Event | Description |
+|-------|-------------|
+| `content_retrieved` | Content fetched from source |
+| `content_displayed` | Content shown to user |
+| `content_engaged` | User interacted with content |
+| `content_cited` | Content referenced in response |
+
+**Conversation Events** capture agent interactions:
+
+| Event | Description |
+|-------|-------------|
+| `turn_started` | User initiated a conversation turn |
+| `turn_completed` | Agent finished responding |
+
+**Commerce Events** enable purchase attribution:
+
+| Event | Description |
+|-------|-------------|
+| `product_viewed` | Product page viewed |
+| `product_compared` | Products compared |
+| `cart_add` / `cart_remove` | Cart modifications |
+| `checkout_started` | Checkout initiated |
+| `checkout_completed` | Purchase completed |
+| `checkout_abandoned` | Checkout abandoned |
+
+## Privacy Levels
+
+Control what conversation data is shared based on trust relationships:
+
+| Level | Query/Response Text | Intent | Topics | Tokens | Content IDs |
+|-------|---------------------|--------|--------|--------|-------------|
+| `full` | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `summary` | Summarized | ✓ | ✓ | ✓ | ✓ |
+| `intent` | ✗ | ✓ | ✓ | ✓ | ✓ |
+| `minimal` | ✗ | ✗ | ✗ | ✓ | ✓ |
+
+## MCP Tool Integration
 
 Expose attribution as an MCP tool:
 
@@ -197,16 +171,22 @@ async def record_attribution(
     return "Attribution recorded"
 ```
 
+## Related Standards
+
+- **[SPECIFICATION.md](./SPECIFICATION.md)** - Full protocol specification
+- **[schema.json](./schema.json)** - JSON Schema for cross-language implementations
+- **[OpenAttribution AIMS](https://github.com/openattribution-org/aims)** - AI Manifest Standard for licensing and trust
+
 ## Get Involved
 
 OpenAttribution is a community effort. We welcome:
 
-- **Feedback** on the specification via [GitHub Issues](https://github.com/narrativai/openattribution/issues)
+- **Feedback** via [GitHub Issues](https://github.com/openattribution-org/telemetry/issues)
 - **Implementations** in other languages
 - **Use cases** we haven't considered
 
-For information about joining the OpenAttribution initiative, visit [openattribution.org](https://openattribution.org).
+Visit [openattribution.org](https://openattribution.org) for more information.
 
 ## License
 
-Apache 2.0 — see [LICENSE](./LICENSE) for details.
+Apache 2.0 - see [LICENSE](./LICENSE) for details.

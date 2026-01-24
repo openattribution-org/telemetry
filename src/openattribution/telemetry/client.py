@@ -1,11 +1,11 @@
-"""OpenAttribution client for recording telemetry."""
+"""OpenAttribution telemetry client for recording events."""
 
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import httpx
 
-from openattribution.schema import (
+from openattribution.telemetry.schema import (
     ConversationTurn,
     EventType,
     SessionOutcome,
@@ -14,12 +14,14 @@ from openattribution.schema import (
 )
 
 
-class OpenAttributionClient:
+class Client:
     """
     Async client for recording OpenAttribution telemetry.
 
     Usage:
-        async with OpenAttributionClient(
+        from openattribution.telemetry import Client, ConversationTurn, SessionOutcome
+
+        async with Client(
             endpoint="https://api.example.com/telemetry",
             api_key="your-api-key"
         ) as client:
@@ -171,7 +173,7 @@ class OpenAttributionClient:
         """Close the HTTP client."""
         await self.client.aclose()
 
-    async def __aenter__(self) -> "OpenAttributionClient":
+    async def __aenter__(self) -> "Client":
         """Context manager entry."""
         return self
 
