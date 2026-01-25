@@ -25,7 +25,7 @@ class Client:
             endpoint="https://api.example.com/telemetry",
             api_key="your-api-key"
         ) as client:
-            session_id = await client.start_session(mix_id="my-content-mix")
+            session_id = await client.start_session(content_scope="my-content-mix")
 
             await client.record_event(
                 session_id=session_id,
@@ -71,18 +71,24 @@ class Client:
 
     async def start_session(
         self,
-        mix_id: str,
+        content_scope: str | None = None,
         agent_id: str | None = None,
         external_session_id: str | None = None,
         user_context: UserContext | None = None,
+        manifest_ref: str | None = None,
+        prior_session_ids: list[UUID] | None = None,
     ) -> UUID:
         """Start a new telemetry session.
 
         Args:
-            mix_id: ContentMix identifier (which content collection is being used).
+            content_scope: Opaque content collection identifier. Implementers define
+                the meaning (e.g., mix ID, AIMS manifest, API key scope).
             agent_id: Optional agent identifier (for multi-agent systems).
             external_session_id: Optional external session identifier.
             user_context: Optional user context for segmentation.
+            manifest_ref: Optional AIMS manifest reference for licensing verification.
+            prior_session_ids: Optional list of previous session IDs in the same
+                user journey (for cross-session attribution).
 
         Returns:
             Session UUID for use in subsequent calls.
@@ -90,10 +96,12 @@ class Client:
         response = await self.client.post(
             f"{self.endpoint}/session/start",
             json={
-                "mix_id": mix_id,
+                "content_scope": content_scope,
                 "agent_id": agent_id,
                 "external_session_id": external_session_id,
                 "user_context": user_context.model_dump() if user_context else {},
+                "manifest_ref": manifest_ref,
+                "prior_session_ids": [str(sid) for sid in prior_session_ids] if prior_session_ids else [],
             },
         )
         response.raise_for_status()

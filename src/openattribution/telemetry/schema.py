@@ -10,6 +10,8 @@ The schema supports:
 - Privacy-tiered conversation capture
 - Content retrieval and citation tracking
 - Commerce/conversion attribution
+- Cross-session journey attribution
+- AIMS manifest integration for licensing verification
 """
 
 from datetime import datetime
@@ -239,7 +241,14 @@ class TelemetrySession(BaseModel):
         schema_version: OpenAttribution schema version.
         session_id: Unique identifier for this session.
         agent_id: Identifier for the AI agent (for multi-agent systems).
-        mix_id: ContentMix identifier (which content collection was used).
+        content_scope: Opaque identifier for the content collection/permissions
+            context. Implementers define the meaning (e.g., mix ID, manifest
+            reference, API key scope). Used for attribution aggregation.
+        manifest_ref: Optional reference to an AIMS manifest for licensing
+            verification (e.g., "did:aims:abc123").
+        prior_session_ids: Optional list of previous session IDs in the same
+            user journey. Enables cross-session attribution for multi-day
+            or multi-device customer journeys.
         started_at: Session start timestamp (UTC).
         ended_at: Session end timestamp (UTC), if concluded.
         user_context: User segmentation data.
@@ -249,16 +258,24 @@ class TelemetrySession(BaseModel):
     Example:
         >>> session = TelemetrySession(
         ...     session_id=uuid4(),
-        ...     mix_id="my-content-mix",
+        ...     content_scope="my-content-mix",
         ...     started_at=datetime.now(UTC),
         ...     user_context=UserContext(segments=["premium"])
         ... )
     """
 
-    schema_version: str = "0.1"
+    schema_version: str = "0.2"
     session_id: UUID
     agent_id: str | None = None
-    mix_id: str
+
+    # Content scope and licensing
+    content_scope: str | None = None
+    manifest_ref: str | None = None
+
+    # Cross-session attribution
+    prior_session_ids: list[UUID] = Field(default_factory=list)
+
+    # Session lifecycle
     started_at: datetime
     ended_at: datetime | None = None
     user_context: UserContext = Field(default_factory=UserContext)

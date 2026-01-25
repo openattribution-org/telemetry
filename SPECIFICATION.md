@@ -1,6 +1,6 @@
 # OpenAttribution Specification
 
-**Version:** 0.1
+**Version:** 0.2
 **Status:** Preview
 **Last Updated:** 2026-01
 
@@ -88,15 +88,57 @@ Conversation turns overlay this lifecycle:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `schema_version` | string | Yes | Schema version (e.g., "0.1") |
+| `schema_version` | string | Yes | Schema version (e.g., "0.2") |
 | `session_id` | UUID | Yes | Unique session identifier |
 | `agent_id` | string | No | Agent identifier (for multi-agent systems) |
-| `mix_id` | string | Yes | ContentMix identifier |
+| `content_scope` | string | No | Opaque content collection identifier (see 3.1.1) |
+| `manifest_ref` | string | No | AIMS manifest reference (see 3.1.2) |
+| `prior_session_ids` | UUID[] | No | Previous sessions in journey (see 3.1.3) |
 | `started_at` | datetime | Yes | Session start (UTC) |
 | `ended_at` | datetime | No | Session end (UTC) |
 | `user_context` | UserContext | No | User segmentation data |
 | `events` | Event[] | No | Ordered list of events |
 | `outcome` | SessionOutcome | No | Final session outcome |
+
+#### 3.1.1 Content Scope
+
+The `content_scope` field is an opaque identifier that groups sessions by their content access context. Implementers define its meaning based on their architecture:
+
+| Implementation | `content_scope` Value |
+|----------------|----------------------|
+| Content mix platform | Mix ID (e.g., "electronics-reviews") |
+| AIMS-based system | Manifest DID (e.g., "did:aims:abc123") |
+| API key scoped | API key identifier |
+| Customer agreement | Agreement or contract ID |
+
+This field enables attribution aggregation across sessions using the same content collection without mandating a specific access control model.
+
+#### 3.1.2 Manifest Reference
+
+The `manifest_ref` field optionally references an [AIMS (AI Manifest Standard)](https://github.com/openattribution-org/aims) manifest. This enables:
+
+- Verification that cited content was licensed at session time
+- Cross-referencing telemetry with licensing agreements
+- Audit trails for content usage compliance
+
+Format: AIMS DID (e.g., `did:aims:abc123`) or URL to manifest.
+
+#### 3.1.3 Cross-Session Attribution
+
+The `prior_session_ids` field enables attribution across multi-session user journeys:
+
+```
+Day 1: Research session (Session A)
+Day 3: Comparison session (Session B, prior_session_ids: [A])
+Day 7: Purchase session (Session C, prior_session_ids: [A, B])
+```
+
+This supports:
+- Multi-day customer journeys (common in high-consideration purchases)
+- Cross-device attribution (user researches on mobile, converts on desktop)
+- Returning visitor attribution
+
+Attribution algorithms can use this chain to distribute credit across the full journey rather than just the converting session.
 
 ### 3.2 Event
 
@@ -119,7 +161,42 @@ Conversation turns overlay this lifecycle:
 | `content_retrieved` | Content fetched from source | `content_id` |
 | `content_displayed` | Content shown to user | `content_id` |
 | `content_engaged` | User interacted with content | `content_id`, `data.engagement_type` |
-| `content_cited` | Content referenced in response | `content_id`, `data.citation_type` |
+| `content_cited` | Content referenced in response | `content_id`, `data.*` (see below) |
+
+##### Citation Quality Signals
+
+The `content_cited` event supports optional quality signals in the `data` field to enable more accurate attribution:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data.citation_type` | string | How content was used: `direct_quote`, `paraphrase`, `reference`, `contradiction` |
+| `data.excerpt_tokens` | integer | Token count of the excerpt used |
+| `data.position` | string | Prominence in response: `primary`, `supporting`, `mentioned` |
+| `data.content_hash` | string | SHA256 of cited content (for verification) |
+
+**Citation Types:**
+
+- `direct_quote`: Verbatim or near-verbatim reproduction
+- `paraphrase`: Restated in different words
+- `reference`: Mentioned or linked without quoting
+- `contradiction`: Content was retrieved but contradicted/corrected
+
+The `contradiction` type enables negative attribution—content that was retrieved but explicitly disagreed with should not receive positive credit.
+
+**Example:**
+
+```json
+{
+  "type": "content_cited",
+  "content_id": "770e8400-e29b-41d4-a716-446655440010",
+  "data": {
+    "citation_type": "paraphrase",
+    "excerpt_tokens": 85,
+    "position": "primary",
+    "content_hash": "sha256:a1b2c3..."
+  }
+}
+```
 
 #### Conversation Events
 
@@ -317,10 +394,12 @@ See `schema.json` in the repository for the formal JSON Schema definition.
 
 ```json
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "agent_id": "shopping-assistant-v2",
-  "mix_id": "electronics-reviews",
+  "content_scope": "electronics-reviews",
+  "manifest_ref": "did:aims:retailer-content-2026",
+  "prior_session_ids": ["440e8400-e29b-41d4-a716-446655440999"],
   "started_at": "2026-01-15T10:30:00Z",
   "ended_at": "2026-01-15T10:35:00Z",
   "user_context": {
@@ -357,7 +436,11 @@ See `schema.json` in the repository for the formal JSON Schema definition.
       "type": "content_cited",
       "timestamp": "2026-01-15T10:30:05Z",
       "content_id": "770e8400-e29b-41d4-a716-446655440010",
-      "data": {"citation_type": "paraphrase"}
+      "data": {
+        "citation_type": "paraphrase",
+        "excerpt_tokens": 85,
+        "position": "primary"
+      }
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440005",
@@ -408,6 +491,17 @@ See `schema.json` in the repository for the formal JSON Schema definition.
 ```
 
 ## Appendix C: Changelog
+
+### v0.2 (2026-01)
+
+Cross-session attribution and content scope abstraction.
+
+- **Breaking:** Renamed `mix_id` to `content_scope` (now optional)
+- Added `manifest_ref` for AIMS integration
+- Added `prior_session_ids` for cross-session journey attribution
+- Added citation quality signals (`citation_type`, `excerpt_tokens`, `position`, `content_hash`)
+- Added `contradiction` citation type for negative attribution
+- Documentation for content scope patterns and AIMS integration
 
 ### v0.1 (2026-01)
 

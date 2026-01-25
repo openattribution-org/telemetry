@@ -74,13 +74,30 @@ class TestStartSession:
             new_callable=AsyncMock,
             return_value=mock_response({"session_id": str(session_id)}),
         ) as mock_post:
-            result = await client.start_session(mix_id="test-mix")
+            result = await client.start_session(content_scope="test-mix")
 
             assert result == session_id
             mock_post.assert_called_once()
             call_args = mock_post.call_args
             assert call_args[0][0] == "https://api.example.com/telemetry/session/start"
-            assert call_args[1]["json"]["mix_id"] == "test-mix"
+            assert call_args[1]["json"]["content_scope"] == "test-mix"
+
+    @pytest.mark.asyncio
+    async def test_start_session_without_content_scope(self, client, mock_response):
+        """Test starting a session without content_scope (optional)."""
+        session_id = uuid4()
+
+        with patch.object(
+            client.client,
+            "post",
+            new_callable=AsyncMock,
+            return_value=mock_response({"session_id": str(session_id)}),
+        ) as mock_post:
+            result = await client.start_session()
+
+            assert result == session_id
+            call_args = mock_post.call_args
+            assert call_args[1]["json"]["content_scope"] is None
 
     @pytest.mark.asyncio
     async def test_start_session_with_agent(self, client, mock_response):
@@ -94,13 +111,57 @@ class TestStartSession:
             return_value=mock_response({"session_id": str(session_id)}),
         ) as mock_post:
             result = await client.start_session(
-                mix_id="test-mix",
+                content_scope="test-mix",
                 agent_id="shopping-assistant",
             )
 
             assert result == session_id
             call_args = mock_post.call_args
             assert call_args[1]["json"]["agent_id"] == "shopping-assistant"
+
+    @pytest.mark.asyncio
+    async def test_start_session_with_manifest_ref(self, client, mock_response):
+        """Test starting a session with AIMS manifest reference."""
+        session_id = uuid4()
+
+        with patch.object(
+            client.client,
+            "post",
+            new_callable=AsyncMock,
+            return_value=mock_response({"session_id": str(session_id)}),
+        ) as mock_post:
+            result = await client.start_session(
+                content_scope="test-mix",
+                manifest_ref="did:aims:retailer-content-2026",
+            )
+
+            assert result == session_id
+            call_args = mock_post.call_args
+            assert call_args[1]["json"]["manifest_ref"] == "did:aims:retailer-content-2026"
+
+    @pytest.mark.asyncio
+    async def test_start_session_with_prior_sessions(self, client, mock_response):
+        """Test starting a session with prior session IDs for journey linking."""
+        session_id = uuid4()
+        prior_session_1 = uuid4()
+        prior_session_2 = uuid4()
+
+        with patch.object(
+            client.client,
+            "post",
+            new_callable=AsyncMock,
+            return_value=mock_response({"session_id": str(session_id)}),
+        ) as mock_post:
+            result = await client.start_session(
+                content_scope="test-mix",
+                prior_session_ids=[prior_session_1, prior_session_2],
+            )
+
+            assert result == session_id
+            call_args = mock_post.call_args
+            prior_ids = call_args[1]["json"]["prior_session_ids"]
+            assert len(prior_ids) == 2
+            assert str(prior_session_1) in prior_ids
 
     @pytest.mark.asyncio
     async def test_start_session_with_user_context(self, client, mock_response):
@@ -114,7 +175,7 @@ class TestStartSession:
             return_value=mock_response({"session_id": str(session_id)}),
         ) as mock_post:
             result = await client.start_session(
-                mix_id="test-mix",
+                content_scope="test-mix",
                 user_context=UserContext(
                     external_id="user_hash",
                     segments=["premium", "returning"],
@@ -320,7 +381,7 @@ class TestContextManager:
                 new_callable=AsyncMock,
                 return_value=mock_response({"session_id": str(session_id)}),
             ):
-                result = await client.start_session(mix_id="test")
+                result = await client.start_session(content_scope="test")
                 assert result == session_id
 
 
@@ -343,4 +404,4 @@ class TestErrorHandling:
             return_value=error_response,
         ):
             with pytest.raises(httpx.HTTPStatusError):
-                await client.start_session(mix_id="test")
+                await client.start_session(content_scope="test")
