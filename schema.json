@@ -1,14 +1,14 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openattribution.org/schema/v0.1/telemetry-session.json",
+  "$id": "https://openattribution.org/schema/v0.2/telemetry-session.json",
   "title": "OpenAttribution Telemetry Session",
   "description": "Schema for OpenAttribution telemetry sessions - tracking content attribution in AI agent interactions",
   "type": "object",
-  "required": ["schema_version", "session_id", "mix_id", "started_at"],
+  "required": ["schema_version", "session_id", "started_at"],
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "0.1",
+      "const": "0.2",
       "description": "OpenAttribution schema version"
     },
     "session_id": {
@@ -20,9 +20,18 @@
       "type": ["string", "null"],
       "description": "Agent identifier for multi-agent systems"
     },
-    "mix_id": {
-      "type": "string",
-      "description": "ContentMix identifier (which content collection was used)"
+    "content_scope": {
+      "type": ["string", "null"],
+      "description": "Opaque content collection identifier (e.g., mix ID, manifest DID, API key scope)"
+    },
+    "manifest_ref": {
+      "type": ["string", "null"],
+      "description": "AIMS manifest reference for licensing verification (e.g., 'did:aims:abc123')"
+    },
+    "prior_session_ids": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "description": "Previous session IDs in user journey for cross-session attribution"
     },
     "started_at": {
       "type": "string",
@@ -111,7 +120,7 @@
         "data": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Additional event-specific metadata"
+          "description": "Additional event-specific metadata. For content_cited events, supports citation quality signals: citation_type (direct_quote|paraphrase|reference|contradiction), excerpt_tokens (integer), position (primary|supporting|mentioned), content_hash (SHA256 for verification)"
         }
       }
     },
@@ -250,6 +259,39 @@
       "type": "string",
       "description": "Session outcome classifications",
       "enum": ["conversion", "abandonment", "browse"]
+    },
+    "CitationType": {
+      "type": "string",
+      "description": "How content was used in the response",
+      "enum": ["direct_quote", "paraphrase", "reference", "contradiction"]
+    },
+    "CitationPosition": {
+      "type": "string",
+      "description": "Prominence of citation in response",
+      "enum": ["primary", "supporting", "mentioned"]
+    },
+    "CitationData": {
+      "type": "object",
+      "description": "Citation quality signals for content_cited events. All fields optional.",
+      "properties": {
+        "citation_type": {
+          "$ref": "#/$defs/CitationType"
+        },
+        "excerpt_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Token count of the excerpt used"
+        },
+        "position": {
+          "$ref": "#/$defs/CitationPosition"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "SHA256 hash of cited content for verification (format: 'sha256:abc123...')"
+        }
+      },
+      "additionalProperties": true
     }
   }
 }
