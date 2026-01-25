@@ -173,6 +173,22 @@ async def record_attribution(
     return "Attribution recorded"
 ```
 
+## Reference Server Implementation
+
+A complete server implementation is available in the [`server/`](./server/) directory:
+
+```bash
+pip install openattribution-telemetry-server
+```
+
+The server provides:
+- FastAPI-based REST API matching the client SDK
+- PostgreSQL storage with optimized schema
+- Internal endpoints for attribution systems
+- Ready for production use or as a starting point
+
+See [`server/README.md`](./server/README.md) for details.
+
 ## Related Standards
 
 - **[SPECIFICATION.md](./SPECIFICATION.md)** - Full protocol specification
