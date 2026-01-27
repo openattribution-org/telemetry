@@ -305,29 +305,61 @@ class TestTelemetrySession:
         """Test basic session creation."""
         session = TelemetrySession(
             session_id=uuid4(),
-            mix_id="electronics-reviews",
+            content_scope="electronics-reviews",
             started_at=datetime.now(UTC),
         )
-        assert session.schema_version == "0.1"
-        assert session.mix_id == "electronics-reviews"
+        assert session.schema_version == "0.2"
+        assert session.content_scope == "electronics-reviews"
         assert session.events == []
         assert session.outcome is None
+
+    def test_session_without_content_scope(self):
+        """Test session creation without content_scope (optional)."""
+        session = TelemetrySession(
+            session_id=uuid4(),
+            started_at=datetime.now(UTC),
+        )
+        assert session.content_scope is None
+        assert session.manifest_ref is None
 
     def test_session_with_agent(self):
         """Test session with agent identifier."""
         session = TelemetrySession(
             session_id=uuid4(),
             agent_id="shopping-assistant-v2",
-            mix_id="home-improvement",
+            content_scope="home-improvement",
             started_at=datetime.now(UTC),
         )
         assert session.agent_id == "shopping-assistant-v2"
+
+    def test_session_with_manifest_ref(self):
+        """Test session with AIMS manifest reference."""
+        session = TelemetrySession(
+            session_id=uuid4(),
+            content_scope="electronics-reviews",
+            manifest_ref="did:aims:retailer-content-2026",
+            started_at=datetime.now(UTC),
+        )
+        assert session.manifest_ref == "did:aims:retailer-content-2026"
+
+    def test_session_with_prior_session_ids(self):
+        """Test session with cross-session journey linking."""
+        prior_session_1 = uuid4()
+        prior_session_2 = uuid4()
+        session = TelemetrySession(
+            session_id=uuid4(),
+            content_scope="electronics-reviews",
+            prior_session_ids=[prior_session_1, prior_session_2],
+            started_at=datetime.now(UTC),
+        )
+        assert len(session.prior_session_ids) == 2
+        assert prior_session_1 in session.prior_session_ids
 
     def test_session_with_user_context(self):
         """Test session with user context."""
         session = TelemetrySession(
             session_id=uuid4(),
-            mix_id="test-mix",
+            content_scope="test-mix",
             started_at=datetime.now(UTC),
             user_context=UserContext(
                 external_id="user_abc",
@@ -342,11 +374,14 @@ class TestTelemetrySession:
         session_id = uuid4()
         content_id = uuid4()
         product_id = uuid4()
+        prior_session = uuid4()
 
         session = TelemetrySession(
             session_id=session_id,
             agent_id="test-agent",
-            mix_id="test-mix",
+            content_scope="test-mix",
+            manifest_ref="did:aims:test",
+            prior_session_ids=[prior_session],
             started_at=datetime.now(UTC),
             ended_at=datetime.now(UTC),
             user_context=UserContext(segments=["test"]),
@@ -367,6 +402,11 @@ class TestTelemetrySession:
                     type="content_cited",
                     timestamp=datetime.now(UTC),
                     content_id=content_id,
+                    data={
+                        "citation_type": "paraphrase",
+                        "excerpt_tokens": 85,
+                        "position": "primary",
+                    },
                 ),
                 TelemetryEvent(
                     id=uuid4(),
@@ -402,6 +442,7 @@ class TestTelemetrySession:
         assert len(session.events) == 6
         assert session.outcome.type == "conversion"
         assert session.ended_at is not None
+        assert session.prior_session_ids == [prior_session]
 
 
 class TestSerialization:
@@ -409,9 +450,12 @@ class TestSerialization:
 
     def test_session_json_roundtrip(self):
         """Test TelemetrySession serializes and deserializes correctly."""
+        prior_session = uuid4()
         session = TelemetrySession(
             session_id=uuid4(),
-            mix_id="test",
+            content_scope="test",
+            manifest_ref="did:aims:test",
+            prior_session_ids=[prior_session],
             started_at=datetime.now(UTC),
             events=[
                 TelemetryEvent(
@@ -428,7 +472,9 @@ class TestSerialization:
         restored = TelemetrySession.model_validate(json_data)
 
         assert restored.session_id == session.session_id
-        assert restored.mix_id == session.mix_id
+        assert restored.content_scope == session.content_scope
+        assert restored.manifest_ref == session.manifest_ref
+        assert len(restored.prior_session_ids) == 1
         assert len(restored.events) == 1
         assert restored.outcome.type == "browse"
 

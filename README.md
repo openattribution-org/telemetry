@@ -49,7 +49,7 @@ async def main():
 
         # Start a session
         session_id = await client.start_session(
-            mix_id="my-content-mix",
+            content_scope="my-content-mix",
             user_context=UserContext(segments=["premium"])
         )
 
@@ -95,7 +95,9 @@ A **Session** represents a bounded interaction between an end user and an AI age
 ```
 Session
 ├── started_at
-├── mix_id (content collection identifier)
+├── content_scope (opaque content collection identifier)
+├── manifest_ref (optional AIMS reference)
+├── prior_session_ids (for multi-session journeys)
 ├── user_context (segments, attributes)
 ├── events[]
 │   ├── content_retrieved
@@ -170,6 +172,22 @@ async def record_attribution(
     )
     return "Attribution recorded"
 ```
+
+## Reference Server Implementation
+
+A complete server implementation is available in the [`server/`](./server/) directory:
+
+```bash
+pip install openattribution-telemetry-server
+```
+
+The server provides:
+- FastAPI-based REST API matching the client SDK
+- PostgreSQL storage with optimized schema
+- Internal endpoints for attribution systems
+- Ready for production use or as a starting point
+
+See [`server/README.md`](./server/README.md) for details.
 
 ## Related Standards
 
