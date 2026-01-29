@@ -6,7 +6,7 @@
 
 ## Abstract
 
-OpenAttribution is an open standard for tracking content attribution in AI agent interactions. It enables content creators to receive fair compensation when their content contributes to AI-generated responses that drive user outcomes.
+OpenAttribution is an open standard for tracking content attribution in AI agent interactions. It provides telemetry data that can be used to determine which content contributed to AI-generated responses and user outcomes.
 
 ## 1. Introduction
 
@@ -16,16 +16,16 @@ AI agents increasingly use licensed content to generate helpful responses. Howev
 
 1. Track which content was retrieved and used in a response
 2. Attribute user outcomes (purchases, signups) to specific content
-3. Enable fair compensation for content creators based on contribution
+3. Provide data that could inform compensation arrangements
 
 ### 1.2 Goals
 
-OpenAttribution aims to:
+OpenAttribution defines:
 
-- Define a **minimal, extensible schema** for telemetry events
-- Support **privacy-preserving** data sharing between parties
-- Enable **attribution calculation** across the content lifecycle
-- Remain **vendor-neutral** and open source
+- A **minimal, extensible schema** for telemetry events
+- **Privacy-preserving** data sharing levels between parties
+- Data structures for **attribution calculation** across the content lifecycle
+- A **vendor-neutral**, open source approach
 
 ### 1.3 Non-Goals
 
@@ -181,7 +181,7 @@ The `content_cited` event supports optional quality signals in the `data` field 
 - `reference`: Mentioned or linked without quoting
 - `contradiction`: Content was retrieved but contradicted/corrected
 
-The `contradiction` type enables negative attribution—content that was retrieved but explicitly disagreed with should not receive positive credit.
+The `contradiction` type enables negative attribution. Content that was retrieved but explicitly disagreed with should not receive positive credit.
 
 **Example:**
 

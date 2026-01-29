@@ -9,7 +9,7 @@ Part of the [OpenAttribution](https://openattribution.org) project.
 
 ## What is OpenAttribution?
 
-OpenAttribution is a cross-industry initiative enabling transparency in how AI agents use content. The standard defines **what signals to emit**, not how to use them - attribution algorithms, compensation structures, and business arrangements remain your domain.
+OpenAttribution is a set of open standards for tracking how AI systems use content and verifying compliance with licensing terms. The standard defines **what signals to emit**, not how to use them. Attribution algorithms, compensation structures, and business arrangements remain your domain.
 
 | Standard | Question It Answers |
 |----------|---------------------|

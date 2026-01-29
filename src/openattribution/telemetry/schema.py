@@ -3,7 +3,7 @@ OpenAttribution Telemetry Schema v0.2
 
 This module defines the core data types for the OpenAttribution standard.
 OpenAttribution is an open specification for tracking content attribution
-in AI agent interactions, enabling fair compensation for content creators.
+in AI agent interactions.
 
 The schema supports:
 - Session-based event tracking
