@@ -26,21 +26,19 @@ from pydantic import BaseModel, Field
 
 EventType = Literal[
     # Content lifecycle events
-    "content_retrieved",   # Content fetched from source
-    "content_displayed",   # Content shown to user
-    "content_engaged",     # User interacted with content
-    "content_cited",       # Content referenced in response
-
+    "content_retrieved",  # Content fetched from source
+    "content_displayed",  # Content shown to user
+    "content_engaged",  # User interacted with content
+    "content_cited",  # Content referenced in response
     # Conversation events
-    "turn_started",        # User initiated a conversation turn
-    "turn_completed",      # Agent finished responding
-
+    "turn_started",  # User initiated a conversation turn
+    "turn_completed",  # Agent finished responding
     # Commerce events
-    "product_viewed",      # Product page/details viewed
-    "product_compared",    # Multiple products compared
-    "cart_add",            # Item added to cart
-    "cart_remove",         # Item removed from cart
-    "checkout_started",    # Checkout flow initiated
+    "product_viewed",  # Product page/details viewed
+    "product_compared",  # Multiple products compared
+    "cart_add",  # Item added to cart
+    "cart_remove",  # Item removed from cart
+    "checkout_started",  # Checkout flow initiated
     "checkout_completed",  # Purchase completed
     "checkout_abandoned",  # Checkout abandoned
 ]
@@ -81,13 +79,11 @@ IntentCategory = Literal[
     "how_to",
     "troubleshooting",
     "general_question",
-
     # Commerce intents
     "purchase_intent",
     "price_check",
     "availability_check",
     "review_seeking",
-
     # Other
     "chitchat",
     "other",
@@ -103,6 +99,34 @@ without exposing raw conversation text.
 # =============================================================================
 # CORE MODELS
 # =============================================================================
+
+InitiatorType = Literal["user", "agent"]
+"""
+Actor type for the session initiator.
+
+- user: A human end user (default)
+- agent: An AI agent calling another agent
+"""
+
+
+class Initiator(BaseModel):
+    """
+    Identity of the initiating agent.
+
+    Used when initiator_type is "agent" to identify the calling agent.
+    When the initiator is a human user, this is omitted and user_context
+    describes the initiator instead.
+
+    Attributes:
+        agent_id: Calling agent's identifier.
+        manifest_ref: Calling agent's AIMS manifest reference.
+        operator_id: Organization operating the calling agent.
+    """
+
+    agent_id: str | None = None
+    manifest_ref: str | None = None
+    operator_id: str | None = None
+
 
 class UserContext(BaseModel):
     """
@@ -240,7 +264,9 @@ class TelemetrySession(BaseModel):
     Attributes:
         schema_version: OpenAttribution schema version.
         session_id: Unique identifier for this session.
-        agent_id: Identifier for the AI agent (for multi-agent systems).
+        initiator_type: Who started the session: "user" (default) or "agent".
+        initiator: Identity of the calling agent when initiator_type is "agent".
+        agent_id: Identifier for the responding AI agent (for multi-agent systems).
         content_scope: Opaque identifier for the content collection/permissions
             context. Implementers define the meaning (e.g., mix ID, manifest
             reference, API key scope). Used for attribution aggregation.
@@ -264,8 +290,13 @@ class TelemetrySession(BaseModel):
         ... )
     """
 
-    schema_version: str = "0.2"
+    schema_version: str = "0.3"
     session_id: UUID
+
+    # Actor types
+    initiator_type: InitiatorType = "user"
+    initiator: Initiator | None = None
+
     agent_id: str | None = None
 
     # Content scope and licensing

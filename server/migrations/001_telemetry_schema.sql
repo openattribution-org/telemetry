@@ -12,9 +12,17 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Sessions table
--- Represents a bounded interaction between an end user and an AI agent
+-- Represents a bounded interaction between an initiator (user or agent) and a responding AI agent
 CREATE TABLE sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Actor types: who initiated this session
+    -- 'user' (default) = human end user, 'agent' = another AI agent
+    initiator_type TEXT NOT NULL DEFAULT 'user',
+
+    -- Initiator identity (for agent-to-agent sessions)
+    -- Contains agent_id, manifest_ref, operator_id of the calling agent
+    initiator JSONB,
 
     -- Content scope: opaque identifier for the content collection/permissions context
     -- Implementers define the meaning (e.g., mix ID, manifest reference, API key scope)
@@ -50,6 +58,11 @@ CREATE TABLE sessions (
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Initiator type must be one of the standard types
+    CONSTRAINT sessions_initiator_type_check CHECK (
+        initiator_type IN ('user', 'agent')
+    ),
 
     -- Outcome type must be one of the standard types
     CONSTRAINT sessions_outcome_type_check CHECK (

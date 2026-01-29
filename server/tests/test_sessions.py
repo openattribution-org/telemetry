@@ -7,7 +7,12 @@ import pytest
 from httpx import AsyncClient
 from psycopg import AsyncConnection
 
-from openattribution.telemetry_server.models import Session, SessionCreate, SessionEnd, SessionOutcome
+from openattribution.telemetry_server.models import (
+    Session,
+    SessionCreate,
+    SessionEnd,
+    SessionOutcome,
+)
 from openattribution.telemetry_server.services import sessions as session_service
 
 
@@ -40,12 +45,37 @@ class TestSessionService:
 
         session = await session_service.create_session(conn, data)
 
+        assert session.initiator_type == "user"
+        assert session.initiator is None
         assert session.content_scope == "my-content-collection"
         assert session.manifest_ref == "did:aims:abc123"
         assert session.agent_id == "shopping-agent-v1"
         assert session.external_session_id == "user-session-456"
         assert session.user_context == {"segments": ["premium"], "locale": "en-US"}
         assert len(session.prior_session_ids) == 2
+
+    async def test_create_session_agent_to_agent(self, conn: AsyncConnection):
+        """Create session with agent initiator."""
+        data = SessionCreate(
+            initiator_type="agent",
+            initiator={
+                "agent_id": "orchestrator-v1",
+                "manifest_ref": "did:aims:orchestrator-license",
+                "operator_id": "acme-corp",
+            },
+            content_scope="electronics-reviews",
+            manifest_ref="did:aims:retailer-content",
+            agent_id="content-retrieval-v3",
+        )
+
+        session = await session_service.create_session(conn, data)
+
+        assert session.initiator_type == "agent"
+        assert session.initiator is not None
+        assert session.initiator["agent_id"] == "orchestrator-v1"
+        assert session.initiator["manifest_ref"] == "did:aims:orchestrator-license"
+        assert session.initiator["operator_id"] == "acme-corp"
+        assert session.agent_id == "content-retrieval-v3"
 
     async def test_get_session(self, conn: AsyncConnection, session: Session):
         """Get session by ID."""
@@ -62,9 +92,7 @@ class TestSessionService:
 
     async def test_get_session_by_external_id(self, conn: AsyncConnection, session: Session):
         """Get session by external session ID."""
-        retrieved = await session_service.get_session_by_external_id(
-            conn, "ext-123"
-        )
+        retrieved = await session_service.get_session_by_external_id(conn, "ext-123")
 
         assert retrieved is not None
         assert retrieved.id == session.id

@@ -19,6 +19,8 @@ from openattribution.telemetry.client import Client
 from openattribution.telemetry.schema import (
     ConversationTurn,
     EventType,
+    Initiator,
+    InitiatorType,
     IntentCategory,
     OutcomeType,
     PrivacyLevel,
@@ -33,10 +35,12 @@ __all__ = [
     "Client",
     # Type aliases
     "EventType",
+    "InitiatorType",
     "OutcomeType",
     "PrivacyLevel",
     "IntentCategory",
     # Models
+    "Initiator",
     "UserContext",
     "ConversationTurn",
     "TelemetryEvent",

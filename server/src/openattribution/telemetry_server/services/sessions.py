@@ -32,14 +32,17 @@ async def create_session(
     row = await conn.execute(
         """
         INSERT INTO sessions (
+            initiator_type, initiator,
             content_scope, manifest_ref,
             agent_id, external_session_id, prior_session_ids,
             user_context
         )
-        VALUES (%s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING *
         """,
         (
+            data.initiator_type,
+            Jsonb(data.initiator) if data.initiator else None,
             data.content_scope,
             data.manifest_ref,
             data.agent_id,
@@ -180,19 +183,21 @@ def _row_to_session(row: tuple) -> Session:
     """Convert a database row to a Session model."""
     return Session(
         id=row[0],
-        content_scope=row[1],
-        manifest_ref=row[2],
-        config_snapshot_hash=row[3],
-        agent_id=row[4],
-        external_session_id=row[5],
-        prior_session_ids=row[6] or [],
-        user_context=row[7] or {},
-        started_at=row[8],
-        ended_at=row[9],
-        outcome_type=row[10],
-        outcome_value=row[11],
-        created_at=row[12],
-        updated_at=row[13],
+        initiator_type=row[1],
+        initiator=row[2],
+        content_scope=row[3],
+        manifest_ref=row[4],
+        config_snapshot_hash=row[5],
+        agent_id=row[6],
+        external_session_id=row[7],
+        prior_session_ids=row[8] or [],
+        user_context=row[9] or {},
+        started_at=row[10],
+        ended_at=row[11],
+        outcome_type=row[12],
+        outcome_value=row[13],
+        created_at=row[14],
+        updated_at=row[15],
     )
 
 

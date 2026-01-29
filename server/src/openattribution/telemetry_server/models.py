@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 from openattribution.telemetry.schema import (
     ConversationTurn,
     EventType,
+    Initiator,
+    InitiatorType,
     IntentCategory,
     OutcomeType,
     PrivacyLevel,
@@ -22,6 +24,8 @@ __all__ = [
     # SDK re-exports
     "ConversationTurn",
     "EventType",
+    "Initiator",
+    "InitiatorType",
     "IntentCategory",
     "OutcomeType",
     "PrivacyLevel",
@@ -48,6 +52,8 @@ __all__ = [
 class SessionCreate(BaseModel):
     """Input for POST /session/start (matches SDK client)."""
 
+    initiator_type: str = "user"
+    initiator: dict | None = None
     content_scope: str | None = None
     manifest_ref: str | None = None
     agent_id: str | None = None
@@ -79,6 +85,8 @@ class Session(BaseModel):
     """Full session from database."""
 
     id: UUID
+    initiator_type: str
+    initiator: dict | None
     content_scope: str | None
     manifest_ref: str | None
     config_snapshot_hash: str | None

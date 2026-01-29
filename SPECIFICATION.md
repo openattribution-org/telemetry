@@ -1,6 +1,6 @@
 # OpenAttribution Specification
 
-**Version:** 0.2
+**Version:** 0.3
 **Status:** Preview
 **Last Updated:** 2026-01
 
@@ -46,9 +46,23 @@ OpenAttribution does not:
 | **Attribution Consumer** | Entity that processes telemetry for attribution (may be same as owner) |
 | **End User** | Human interacting with the AI agent |
 
-### 2.2 Session Model
+### 2.2 Actor Types
 
-A **Session** represents a bounded interaction between an end user and an AI agent. Sessions:
+A session has two sides: an **initiator** (who starts the session) and a **responder** (who handles queries and generates responses).
+
+| Side | Actor Type | Description |
+|------|------------|-------------|
+| Initiator | `user` | A human end user (default) |
+| Initiator | `agent` | An AI agent calling another agent |
+| Responder | `agent` | An AI agent responding to queries (always) |
+
+When the initiator is an agent, it carries its own identity: an agent ID, optional AIMS manifest, and operator identity. This enables attribution in agent-to-agent pipelines where one agent delegates content retrieval or reasoning to another.
+
+Agent-to-agent sessions link into broader journeys via `prior_session_ids`, allowing attribution consumers to reconstruct multi-hop chains back to the originating user session.
+
+### 2.3 Session Model
+
+A **Session** represents a bounded interaction between an initiator (user or agent) and a responding AI agent. Sessions:
 
 - Have a unique identifier
 - Track the content collection (ContentMix) used
@@ -68,7 +82,7 @@ Session
 └── outcome (conversion/abandonment/browse)
 ```
 
-### 2.3 Event Lifecycle
+### 2.4 Event Lifecycle
 
 Content flows through these stages during an agent interaction:
 
@@ -88,9 +102,11 @@ Conversation turns overlay this lifecycle:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `schema_version` | string | Yes | Schema version (e.g., "0.2") |
+| `schema_version` | string | Yes | Schema version (e.g., "0.3") |
 | `session_id` | UUID | Yes | Unique session identifier |
-| `agent_id` | string | No | Agent identifier (for multi-agent systems) |
+| `initiator_type` | string | No | Who started the session: `"user"` (default) or `"agent"` (see 2.2) |
+| `initiator` | Initiator | No | Initiator identity when `initiator_type` is `"agent"` (see 3.1.4) |
+| `agent_id` | string | No | Responding agent identifier (for multi-agent systems) |
 | `content_scope` | string | No | Opaque content collection identifier (see 3.1.1) |
 | `manifest_ref` | string | No | AIMS manifest reference (see 3.1.2) |
 | `prior_session_ids` | UUID[] | No | Previous sessions in journey (see 3.1.3) |
@@ -139,6 +155,24 @@ This supports:
 - Returning visitor attribution
 
 Attribution algorithms can use this chain to distribute credit across the full journey rather than just the converting session.
+
+#### 3.1.4 Initiator Identity
+
+When `initiator_type` is `"agent"`, the `initiator` object identifies the calling agent:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `agent_id` | string | No | Calling agent's identifier |
+| `manifest_ref` | string | No | Calling agent's AIMS manifest reference |
+| `operator_id` | string | No | Organization operating the calling agent |
+
+When `initiator_type` is `"user"` (or omitted), the `initiator` field is omitted and `user_context` describes the initiator instead.
+
+In agent-to-agent sessions, both sides have identity:
+- **Responder**: `agent_id` and `manifest_ref` at the session level (existing fields)
+- **Initiator**: `initiator.agent_id` and `initiator.manifest_ref`
+
+This separation allows attribution consumers to understand which agent requested content and which agent served it.
 
 ### 3.2 Event
 
@@ -390,12 +424,15 @@ Consumers SHOULD accept sessions with compatible minor versions.
 
 See `schema.json` in the repository for the formal JSON Schema definition.
 
-## Appendix B: Example Session
+## Appendix B: Example Sessions
+
+### B.1 User-to-Agent Session
 
 ```json
 {
-  "schema_version": "0.2",
+  "schema_version": "0.3",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "initiator_type": "user",
   "agent_id": "shopping-assistant-v2",
   "content_scope": "electronics-reviews",
   "manifest_ref": "did:aims:retailer-content-2026",
@@ -490,7 +527,99 @@ See `schema.json` in the repository for the formal JSON Schema definition.
 }
 ```
 
+### B.2 Agent-to-Agent Session
+
+An orchestrator agent delegates a product research subtask to a content retrieval agent. The session links back to the user-facing session via `prior_session_ids`.
+
+```json
+{
+  "schema_version": "0.3",
+  "session_id": "550e8400-e29b-41d4-a716-446655440100",
+  "initiator_type": "agent",
+  "initiator": {
+    "agent_id": "shopping-orchestrator-v1",
+    "manifest_ref": "did:aims:orchestrator-license",
+    "operator_id": "acme-corp"
+  },
+  "agent_id": "content-retrieval-agent-v3",
+  "content_scope": "electronics-reviews",
+  "manifest_ref": "did:aims:retailer-content-2026",
+  "prior_session_ids": ["550e8400-e29b-41d4-a716-446655440000"],
+  "started_at": "2026-01-15T10:30:01Z",
+  "ended_at": "2026-01-15T10:30:04Z",
+  "events": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440101",
+      "type": "turn_started",
+      "timestamp": "2026-01-15T10:30:01Z",
+      "turn": {
+        "privacy_level": "intent",
+        "query_intent": "product_research",
+        "topics": ["headphones", "noise-cancelling", "reviews"],
+        "query_tokens": 28
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440102",
+      "type": "content_retrieved",
+      "timestamp": "2026-01-15T10:30:02Z",
+      "content_id": "770e8400-e29b-41d4-a716-446655440010"
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440103",
+      "type": "content_retrieved",
+      "timestamp": "2026-01-15T10:30:02Z",
+      "content_id": "770e8400-e29b-41d4-a716-446655440011"
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440104",
+      "type": "content_cited",
+      "timestamp": "2026-01-15T10:30:03Z",
+      "content_id": "770e8400-e29b-41d4-a716-446655440010",
+      "data": {
+        "citation_type": "paraphrase",
+        "excerpt_tokens": 120,
+        "position": "primary"
+      }
+    },
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440105",
+      "type": "turn_completed",
+      "timestamp": "2026-01-15T10:30:04Z",
+      "turn": {
+        "privacy_level": "intent",
+        "query_intent": "product_research",
+        "response_type": "content_summary",
+        "topics": ["headphones", "Sony WH-1000XM5", "Bose QC45"],
+        "content_ids_retrieved": [
+          "770e8400-e29b-41d4-a716-446655440010",
+          "770e8400-e29b-41d4-a716-446655440011"
+        ],
+        "content_ids_cited": [
+          "770e8400-e29b-41d4-a716-446655440010"
+        ],
+        "response_tokens": 200,
+        "model_id": "claude-3-haiku"
+      }
+    }
+  ],
+  "outcome": {
+    "type": "browse"
+  }
+}
+```
+
 ## Appendix C: Changelog
+
+### v0.3 (2026-01)
+
+Agent-to-agent session support.
+
+- Added `initiator_type` field (`"user"` or `"agent"`, default `"user"`)
+- Added `initiator` object with `agent_id`, `manifest_ref`, `operator_id` for agent-initiated sessions
+- Added section 2.2 (Actor Types) documenting initiator/responder model
+- Added section 3.1.4 (Initiator Identity) with field definitions
+- Added agent-to-agent example session (Appendix B.2)
 
 ### v0.2 (2026-01)
 

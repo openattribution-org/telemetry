@@ -6,6 +6,7 @@ from uuid import uuid4
 from openattribution.telemetry import (
     ConversationTurn,
     EventType,
+    Initiator,
     IntentCategory,
     OutcomeType,
     SessionOutcome,
@@ -308,8 +309,10 @@ class TestTelemetrySession:
             content_scope="electronics-reviews",
             started_at=datetime.now(UTC),
         )
-        assert session.schema_version == "0.2"
+        assert session.schema_version == "0.3"
         assert session.content_scope == "electronics-reviews"
+        assert session.initiator_type == "user"
+        assert session.initiator is None
         assert session.events == []
         assert session.outcome is None
 
@@ -354,6 +357,35 @@ class TestTelemetrySession:
         )
         assert len(session.prior_session_ids) == 2
         assert prior_session_1 in session.prior_session_ids
+
+    def test_session_agent_to_agent(self):
+        """Test session with agent initiator."""
+        session = TelemetrySession(
+            session_id=uuid4(),
+            initiator_type="agent",
+            initiator=Initiator(
+                agent_id="orchestrator-v1",
+                manifest_ref="did:aims:orchestrator-license",
+                operator_id="acme-corp",
+            ),
+            agent_id="content-retrieval-v3",
+            content_scope="electronics-reviews",
+            manifest_ref="did:aims:retailer-content",
+            started_at=datetime.now(UTC),
+        )
+        assert session.initiator_type == "agent"
+        assert session.initiator is not None
+        assert session.initiator.agent_id == "orchestrator-v1"
+        assert session.initiator.manifest_ref == "did:aims:orchestrator-license"
+        assert session.initiator.operator_id == "acme-corp"
+        assert session.agent_id == "content-retrieval-v3"
+
+    def test_initiator_defaults(self):
+        """Test Initiator model with defaults."""
+        initiator = Initiator()
+        assert initiator.agent_id is None
+        assert initiator.manifest_ref is None
+        assert initiator.operator_id is None
 
     def test_session_with_user_context(self):
         """Test session with user context."""

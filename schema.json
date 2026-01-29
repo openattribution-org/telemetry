@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openattribution.org/schema/v0.2/telemetry-session.json",
+  "$id": "https://openattribution.org/schema/v0.3/telemetry-session.json",
   "title": "OpenAttribution Telemetry Session",
   "description": "Schema for OpenAttribution telemetry sessions - tracking content attribution in AI agent interactions",
   "type": "object",
@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "0.2",
+      "const": "0.3",
       "description": "OpenAttribution schema version"
     },
     "session_id": {
@@ -16,9 +16,19 @@
       "format": "uuid",
       "description": "Unique session identifier"
     },
+    "initiator_type": {
+      "type": "string",
+      "enum": ["user", "agent"],
+      "default": "user",
+      "description": "Who started the session: 'user' (human, default) or 'agent' (another AI agent)"
+    },
+    "initiator": {
+      "oneOf": [{ "$ref": "#/$defs/Initiator" }, { "type": "null" }],
+      "description": "Initiator identity when initiator_type is 'agent'"
+    },
     "agent_id": {
       "type": ["string", "null"],
-      "description": "Agent identifier for multi-agent systems"
+      "description": "Responding agent identifier for multi-agent systems"
     },
     "content_scope": {
       "type": ["string", "null"],
@@ -54,14 +64,29 @@
       "description": "Ordered list of events in the session"
     },
     "outcome": {
-      "oneOf": [
-        { "$ref": "#/$defs/SessionOutcome" },
-        { "type": "null" }
-      ],
+      "oneOf": [{ "$ref": "#/$defs/SessionOutcome" }, { "type": "null" }],
       "description": "Final session outcome"
     }
   },
   "$defs": {
+    "Initiator": {
+      "type": "object",
+      "description": "Identity of the initiating agent (used when initiator_type is 'agent')",
+      "properties": {
+        "agent_id": {
+          "type": ["string", "null"],
+          "description": "Calling agent's identifier"
+        },
+        "manifest_ref": {
+          "type": ["string", "null"],
+          "description": "Calling agent's AIMS manifest reference"
+        },
+        "operator_id": {
+          "type": ["string", "null"],
+          "description": "Organization operating the calling agent"
+        }
+      }
+    },
     "UserContext": {
       "type": "object",
       "description": "User context for personalization and segmentation",
@@ -111,10 +136,7 @@
           "description": "Associated product UUID"
         },
         "turn": {
-          "oneOf": [
-            { "$ref": "#/$defs/ConversationTurn" },
-            { "type": "null" }
-          ],
+          "oneOf": [{ "$ref": "#/$defs/ConversationTurn" }, { "type": "null" }],
           "description": "Conversation turn data (for turn_started/turn_completed)"
         },
         "data": {
@@ -160,10 +182,7 @@
           "description": "Agent's response (full/summary levels only)"
         },
         "query_intent": {
-          "oneOf": [
-            { "$ref": "#/$defs/IntentCategory" },
-            { "type": "null" }
-          ],
+          "oneOf": [{ "$ref": "#/$defs/IntentCategory" }, { "type": "null" }],
           "description": "Classified intent category"
         },
         "response_type": {

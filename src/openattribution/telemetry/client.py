@@ -8,6 +8,8 @@ import httpx
 from openattribution.telemetry.schema import (
     ConversationTurn,
     EventType,
+    Initiator,
+    InitiatorType,
     SessionOutcome,
     TelemetryEvent,
     UserContext,
@@ -77,18 +79,22 @@ class Client:
         user_context: UserContext | None = None,
         manifest_ref: str | None = None,
         prior_session_ids: list[UUID] | None = None,
+        initiator_type: InitiatorType = "user",
+        initiator: Initiator | None = None,
     ) -> UUID:
         """Start a new telemetry session.
 
         Args:
             content_scope: Opaque content collection identifier. Implementers define
                 the meaning (e.g., mix ID, AIMS manifest, API key scope).
-            agent_id: Optional agent identifier (for multi-agent systems).
+            agent_id: Optional responding agent identifier (for multi-agent systems).
             external_session_id: Optional external session identifier.
             user_context: Optional user context for segmentation.
             manifest_ref: Optional AIMS manifest reference for licensing verification.
             prior_session_ids: Optional list of previous session IDs in the same
                 user journey (for cross-session attribution).
+            initiator_type: Who started the session: "user" (default) or "agent".
+            initiator: Identity of the calling agent when initiator_type is "agent".
 
         Returns:
             Session UUID for use in subsequent calls.
@@ -96,12 +102,16 @@ class Client:
         response = await self.client.post(
             f"{self.endpoint}/session/start",
             json={
+                "initiator_type": initiator_type,
+                "initiator": initiator.model_dump() if initiator else None,
                 "content_scope": content_scope,
                 "agent_id": agent_id,
                 "external_session_id": external_session_id,
                 "user_context": user_context.model_dump() if user_context else {},
                 "manifest_ref": manifest_ref,
-                "prior_session_ids": [str(sid) for sid in prior_session_ids] if prior_session_ids else [],
+                "prior_session_ids": [str(sid) for sid in prior_session_ids]
+                if prior_session_ids
+                else [],
             },
         )
         response.raise_for_status()
