@@ -1,3 +1,5 @@
+# ABOUTME: Pydantic models and type definitions for the OpenAttribution standard.
+# ABOUTME: Defines events, sessions, outcomes, privacy levels, and conversation turns.
 """
 OpenAttribution Telemetry Schema v0.2
 

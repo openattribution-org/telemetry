@@ -1,3 +1,5 @@
+# ABOUTME: Session service — business logic for session CRUD.
+# ABOUTME: Creates, retrieves, ends, and lists sessions against PostgreSQL.
 """Session service for OpenAttribution Telemetry."""
 
 from datetime import UTC, datetime

@@ -1,3 +1,5 @@
+# ABOUTME: Database connection pool dependency injection.
+# ABOUTME: Provides a FastAPI dependency that yields the psycopg AsyncConnectionPool.
 """Database connection pool management."""
 
 from typing import Annotated, Any

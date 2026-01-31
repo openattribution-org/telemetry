@@ -1,3 +1,5 @@
+# ABOUTME: Public API surface for the OpenAttribution Telemetry SDK.
+# ABOUTME: Re-exports Client, schema models, and type aliases for consumer use.
 """
 OpenAttribution Telemetry - SDK for AI content attribution.
 

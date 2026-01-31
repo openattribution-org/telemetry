@@ -1,3 +1,5 @@
+# ABOUTME: Top-level route aggregator for the telemetry server.
+# ABOUTME: Merges session, event, and internal routers into a single APIRouter.
 """API routes for OpenAttribution Telemetry Server."""
 
 from fastapi import APIRouter

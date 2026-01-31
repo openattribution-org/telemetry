@@ -1,3 +1,5 @@
+# ABOUTME: Event service — business logic for event persistence and retrieval.
+# ABOUTME: Inserts telemetry events into PostgreSQL and queries them by session.
 """Event service for OpenAttribution Telemetry."""
 
 from uuid import UUID

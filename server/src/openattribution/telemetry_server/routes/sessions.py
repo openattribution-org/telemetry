@@ -1,3 +1,5 @@
+# ABOUTME: Public session endpoints (start / end) consumed by the SDK client.
+# ABOUTME: Validates input, delegates to session service, returns session IDs.
 """Session routes - public API matching the SDK."""
 
 from fastapi import APIRouter, HTTPException

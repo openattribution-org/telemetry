@@ -1,3 +1,5 @@
+# ABOUTME: Server configuration via pydantic-settings.
+# ABOUTME: Loads database URL, port, and debug flags from environment / .env files.
 """Server configuration."""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

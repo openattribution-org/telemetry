@@ -1,3 +1,5 @@
+# ABOUTME: Internal query endpoints for attribution and analytics systems.
+# ABOUTME: Provides session lookup, listing, and journey reconstruction by external ID.
 """Internal routes for attribution systems."""
 
 from datetime import datetime

@@ -1,3 +1,5 @@
+# ABOUTME: FastAPI application and lifespan for the telemetry reference server.
+# ABOUTME: Initialises the database pool, mounts route groups, and exposes a health check.
 """OpenAttribution Telemetry Server - FastAPI application."""
 
 import logging

@@ -1,3 +1,5 @@
+# ABOUTME: Pydantic models for the server's API and database layers.
+# ABOUTME: Defines request/response shapes and DB-row models; re-exports SDK schema types.
 """Server-side models for OpenAttribution Telemetry."""
 
 from datetime import datetime

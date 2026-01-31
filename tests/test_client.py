@@ -1,8 +1,9 @@
 """Tests for OpenAttribution telemetry client."""
 
+import logging
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -18,7 +19,18 @@ from openattribution.telemetry import (
 
 @pytest.fixture
 def client():
-    """Create a test client."""
+    """Create a test client with fail_silently=False (legacy behaviour)."""
+    return Client(
+        endpoint="https://api.example.com/telemetry",
+        api_key="test-api-key",
+        fail_silently=False,
+        max_retries=0,
+    )
+
+
+@pytest.fixture
+def silent_client():
+    """Create a test client with fail_silently=True (default)."""
     return Client(
         endpoint="https://api.example.com/telemetry",
         api_key="test-api-key",
@@ -59,6 +71,19 @@ class TestClientInit:
         )
         assert client.endpoint == "https://api.example.com"
 
+    def test_client_defaults(self):
+        """Test default values for new resilience parameters."""
+        client = Client(endpoint="https://example.com", api_key="key")
+        assert client.fail_silently is True
+        assert client.max_retries == 3
+        assert client.logger.name == "openattribution.telemetry"
+
+    def test_client_custom_logger(self):
+        """Test custom logger is used."""
+        custom = logging.getLogger("custom")
+        client = Client(endpoint="https://example.com", api_key="key", logger=custom)
+        assert client.logger is custom
+
 
 class TestStartSession:
     """Tests for start_session method."""
@@ -70,16 +95,17 @@ class TestStartSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({"session_id": str(session_id)}),
-        ) as mock_post:
+        ) as mock_req:
             result = await client.start_session(content_scope="test-mix")
 
             assert result == session_id
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert call_args[0][0] == "https://api.example.com/telemetry/session/start"
+            mock_req.assert_called_once()
+            call_args = mock_req.call_args
+            assert call_args[0][0] == "POST"
+            assert call_args[0][1] == "https://api.example.com/telemetry/session/start"
             assert call_args[1]["json"]["content_scope"] == "test-mix"
 
     @pytest.mark.asyncio
@@ -89,14 +115,14 @@ class TestStartSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({"session_id": str(session_id)}),
-        ) as mock_post:
+        ) as mock_req:
             result = await client.start_session()
 
             assert result == session_id
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             assert call_args[1]["json"]["content_scope"] is None
 
     @pytest.mark.asyncio
@@ -106,17 +132,17 @@ class TestStartSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({"session_id": str(session_id)}),
-        ) as mock_post:
+        ) as mock_req:
             result = await client.start_session(
                 content_scope="test-mix",
                 agent_id="shopping-assistant",
             )
 
             assert result == session_id
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             assert call_args[1]["json"]["agent_id"] == "shopping-assistant"
 
     @pytest.mark.asyncio
@@ -126,17 +152,17 @@ class TestStartSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({"session_id": str(session_id)}),
-        ) as mock_post:
+        ) as mock_req:
             result = await client.start_session(
                 content_scope="test-mix",
                 manifest_ref="did:aims:retailer-content-2026",
             )
 
             assert result == session_id
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             assert call_args[1]["json"]["manifest_ref"] == "did:aims:retailer-content-2026"
 
     @pytest.mark.asyncio
@@ -148,17 +174,17 @@ class TestStartSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({"session_id": str(session_id)}),
-        ) as mock_post:
+        ) as mock_req:
             result = await client.start_session(
                 content_scope="test-mix",
                 prior_session_ids=[prior_session_1, prior_session_2],
             )
 
             assert result == session_id
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             prior_ids = call_args[1]["json"]["prior_session_ids"]
             assert len(prior_ids) == 2
             assert str(prior_session_1) in prior_ids
@@ -170,10 +196,10 @@ class TestStartSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({"session_id": str(session_id)}),
-        ) as mock_post:
+        ) as mock_req:
             result = await client.start_session(
                 content_scope="test-mix",
                 user_context=UserContext(
@@ -183,7 +209,7 @@ class TestStartSession:
             )
 
             assert result == session_id
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             user_ctx = call_args[1]["json"]["user_context"]
             assert user_ctx["external_id"] == "user_hash"
             assert "premium" in user_ctx["segments"]
@@ -200,19 +226,20 @@ class TestRecordEvent:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({}),
-        ) as mock_post:
+        ) as mock_req:
             await client.record_event(
                 session_id=session_id,
                 event_type="content_retrieved",
                 content_id=content_id,
             )
 
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert call_args[0][0] == "https://api.example.com/telemetry/events"
+            mock_req.assert_called_once()
+            call_args = mock_req.call_args
+            assert call_args[0][0] == "POST"
+            assert call_args[0][1] == "https://api.example.com/telemetry/events"
             assert call_args[1]["json"]["session_id"] == str(session_id)
             events = call_args[1]["json"]["events"]
             assert len(events) == 1
@@ -227,10 +254,10 @@ class TestRecordEvent:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({}),
-        ) as mock_post:
+        ) as mock_req:
             await client.record_event(
                 session_id=session_id,
                 event_type="turn_completed",
@@ -243,7 +270,7 @@ class TestRecordEvent:
                 ),
             )
 
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             events = call_args[1]["json"]["events"]
             assert events[0]["type"] == "turn_completed"
             assert events[0]["turn"]["privacy_level"] == "intent"
@@ -256,10 +283,10 @@ class TestRecordEvent:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({}),
-        ) as mock_post:
+        ) as mock_req:
             await client.record_event(
                 session_id=session_id,
                 event_type="content_cited",
@@ -267,7 +294,7 @@ class TestRecordEvent:
                 data={"citation_type": "direct_quote", "position": "middle"},
             )
 
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             events = call_args[1]["json"]["events"]
             assert events[0]["data"]["citation_type"] == "direct_quote"
 
@@ -296,13 +323,13 @@ class TestRecordEvents:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({}),
-        ) as mock_post:
+        ) as mock_req:
             await client.record_events(session_id=session_id, events=events)
 
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             sent_events = call_args[1]["json"]["events"]
             assert len(sent_events) == 2
             assert sent_events[0]["type"] == "content_retrieved"
@@ -320,10 +347,10 @@ class TestEndSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({}),
-        ) as mock_post:
+        ) as mock_req:
             await client.end_session(
                 session_id=session_id,
                 outcome=SessionOutcome(
@@ -334,9 +361,9 @@ class TestEndSession:
                 ),
             )
 
-            mock_post.assert_called_once()
-            call_args = mock_post.call_args
-            assert call_args[0][0] == "https://api.example.com/telemetry/session/end"
+            mock_req.assert_called_once()
+            call_args = mock_req.call_args
+            assert call_args[0][1] == "https://api.example.com/telemetry/session/end"
             assert call_args[1]["json"]["session_id"] == str(session_id)
             outcome = call_args[1]["json"]["outcome"]
             assert outcome["type"] == "conversion"
@@ -349,16 +376,16 @@ class TestEndSession:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=mock_response({}),
-        ) as mock_post:
+        ) as mock_req:
             await client.end_session(
                 session_id=session_id,
                 outcome=SessionOutcome(type="browse"),
             )
 
-            call_args = mock_post.call_args
+            call_args = mock_req.call_args
             outcome = call_args[1]["json"]["outcome"]
             assert outcome["type"] == "browse"
 
@@ -374,10 +401,12 @@ class TestContextManager:
         async with Client(
             endpoint="https://api.example.com/telemetry",
             api_key="test-key",
+            fail_silently=False,
+            max_retries=0,
         ) as client:
             with patch.object(
                 client.client,
-                "post",
+                "request",
                 new_callable=AsyncMock,
                 return_value=mock_response({"session_id": str(session_id)}),
             ):
@@ -389,8 +418,14 @@ class TestErrorHandling:
     """Tests for error handling."""
 
     @pytest.mark.asyncio
-    async def test_http_error_raised(self, client):
-        """Test HTTP errors are raised."""
+    async def test_http_error_raised(self):
+        """Test HTTP errors are raised when fail_silently=False."""
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=False,
+            max_retries=0,
+        )
         error_response = httpx.Response(
             status_code=401,
             json={"error": "Unauthorized"},
@@ -399,9 +434,213 @@ class TestErrorHandling:
 
         with patch.object(
             client.client,
-            "post",
+            "request",
             new_callable=AsyncMock,
             return_value=error_response,
         ):
             with pytest.raises(httpx.HTTPStatusError):
                 await client.start_session(content_scope="test")
+
+    @pytest.mark.asyncio
+    async def test_silent_failure_returns_none(self, mock_response):
+        """Test fail_silently=True returns None on HTTP error."""
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=True,
+            max_retries=0,
+        )
+        error_response = mock_response({"error": "Server Error"}, status_code=500)
+
+        with patch.object(
+            client.client,
+            "request",
+            new_callable=AsyncMock,
+            return_value=error_response,
+        ):
+            result = await client.start_session(content_scope="test")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_retry_on_503_then_succeeds(self, mock_response):
+        """Test transient 503 is retried and succeeds."""
+        session_id = uuid4()
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=False,
+            max_retries=2,
+        )
+        error_resp = mock_response({}, status_code=503)
+        ok_resp = mock_response({"session_id": str(session_id)})
+
+        with (
+            patch.object(
+                client.client,
+                "request",
+                new_callable=AsyncMock,
+                side_effect=[error_resp, ok_resp],
+            ),
+            patch("openattribution.telemetry.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await client.start_session(content_scope="test")
+            assert result == session_id
+
+    @pytest.mark.asyncio
+    async def test_no_retry_on_400(self, mock_response):
+        """Test non-transient 400 is not retried."""
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=False,
+            max_retries=3,
+        )
+        error_resp = mock_response({"error": "Bad Request"}, status_code=400)
+
+        with patch.object(
+            client.client,
+            "request",
+            new_callable=AsyncMock,
+            return_value=error_resp,
+        ) as mock_req:
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.start_session(content_scope="test")
+            # Only called once — no retries for 400
+            assert mock_req.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_retry_exhaustion(self, mock_response):
+        """Test retries exhaust and raise when fail_silently=False."""
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=False,
+            max_retries=2,
+        )
+        error_resp = mock_response({}, status_code=503)
+
+        with (
+            patch.object(
+                client.client,
+                "request",
+                new_callable=AsyncMock,
+                return_value=error_resp,
+            ) as mock_req,
+            patch("openattribution.telemetry.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            with pytest.raises(httpx.HTTPStatusError):
+                await client.start_session(content_scope="test")
+            # Initial attempt + 2 retries = 3 calls
+            assert mock_req.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_retry_exhaustion_silent(self, mock_response):
+        """Test retries exhaust and return None when fail_silently=True."""
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=True,
+            max_retries=2,
+        )
+        error_resp = mock_response({}, status_code=503)
+
+        with (
+            patch.object(
+                client.client,
+                "request",
+                new_callable=AsyncMock,
+                return_value=error_resp,
+            ) as mock_req,
+            patch("openattribution.telemetry.client.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await client.start_session(content_scope="test")
+            assert result is None
+            assert mock_req.call_count == 3
+
+
+class TestNoneSessionShortCircuit:
+    """Tests for None session_id short-circuit behaviour."""
+
+    @pytest.mark.asyncio
+    async def test_record_event_none_session(self, silent_client):
+        """Test record_event with None session_id skips HTTP call."""
+        with patch.object(
+            silent_client.client,
+            "request",
+            new_callable=AsyncMock,
+        ) as mock_req:
+            await silent_client.record_event(
+                session_id=None,
+                event_type="content_retrieved",
+            )
+            mock_req.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_record_events_none_session(self, silent_client):
+        """Test record_events with None session_id skips HTTP call."""
+        with patch.object(
+            silent_client.client,
+            "request",
+            new_callable=AsyncMock,
+        ) as mock_req:
+            await silent_client.record_events(session_id=None, events=[])
+            mock_req.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_end_session_none_session(self, silent_client):
+        """Test end_session with None session_id skips HTTP call."""
+        with patch.object(
+            silent_client.client,
+            "request",
+            new_callable=AsyncMock,
+        ) as mock_req:
+            await silent_client.end_session(
+                session_id=None,
+                outcome=SessionOutcome(type="browse"),
+            )
+            mock_req.assert_not_called()
+
+
+class TestCustomLogger:
+    """Tests for custom logger receiving messages."""
+
+    @pytest.mark.asyncio
+    async def test_custom_logger_receives_failure_warning(self, mock_response):
+        """Test custom logger receives warning on silent failure."""
+        custom_logger = logging.getLogger("test.custom")
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=True,
+            max_retries=0,
+            logger=custom_logger,
+        )
+        error_resp = mock_response({"error": "fail"}, status_code=500)
+
+        with (
+            patch.object(
+                client.client,
+                "request",
+                new_callable=AsyncMock,
+                return_value=error_resp,
+            ),
+            patch.object(custom_logger, "warning") as mock_warn,
+        ):
+            result = await client.start_session(content_scope="test")
+            assert result is None
+            assert mock_warn.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_custom_logger_receives_none_session_warning(self):
+        """Test custom logger receives warning on None session_id."""
+        custom_logger = logging.getLogger("test.custom2")
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            logger=custom_logger,
+        )
+
+        with patch.object(custom_logger, "warning") as mock_warn:
+            await client.record_event(session_id=None, event_type="content_retrieved")
+            mock_warn.assert_called_once()
+            assert "session_id is None" in mock_warn.call_args[0][0]

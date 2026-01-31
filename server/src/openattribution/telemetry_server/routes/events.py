@@ -1,3 +1,5 @@
+# ABOUTME: Public event-recording endpoint consumed by the SDK client.
+# ABOUTME: Validates session state and persists telemetry events via the event service.
 """Event routes - public API matching the SDK."""
 
 from uuid import UUID
