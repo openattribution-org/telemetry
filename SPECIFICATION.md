@@ -6,13 +6,13 @@
 
 ## Abstract
 
-OpenAttribution is an open standard for tracking content attribution in AI agent interactions. It provides telemetry data that can be used to determine which content contributed to AI-generated responses and user outcomes.
+OpenAttribution is an open signal format for content attribution in AI agent interactions. It defines a schema for telemetry data that tracks which content contributed to AI-generated responses and user outcomes. The format is transport-agnostic: implementations choose how to deliver signals (HTTP, MCP, message queues, etc.).
 
 ## 1. Introduction
 
 ### 1.1 Problem Statement
 
-AI agents increasingly use licensed content to generate helpful responses. However, there is no standardized way to:
+AI agents use licensed content to generate responses. There is no standardized way to:
 
 1. Track which content was retrieved and used in a response
 2. Attribute user outcomes (purchases, signups) to specific content
@@ -56,7 +56,7 @@ A session has two sides: an **initiator** (who starts the session) and a **respo
 | Initiator | `agent` | An AI agent calling another agent |
 | Responder | `agent` | An AI agent responding to queries (always) |
 
-When the initiator is an agent, it carries its own identity: an agent ID, optional AIMS manifest, and operator identity. This enables attribution in agent-to-agent pipelines where one agent delegates content retrieval or reasoning to another.
+When the initiator is an agent, it carries its own identity: an agent ID, optional AIMS manifest, and operator identity. This supports attribution in agent-to-agent pipelines where one agent delegates content retrieval or reasoning to another.
 
 Agent-to-agent sessions link into broader journeys via `prior_session_ids`, allowing attribution consumers to reconstruct multi-hop chains back to the originating user session.
 
@@ -65,7 +65,7 @@ Agent-to-agent sessions link into broader journeys via `prior_session_ids`, allo
 A **Session** represents a bounded interaction between an initiator (user or agent) and a responding AI agent. Sessions:
 
 - Have a unique identifier
-- Track the content collection (ContentMix) used
+- Track the content collection used (`content_scope`)
 - Contain ordered **Events**
 - Conclude with an optional **Outcome**
 
@@ -127,21 +127,21 @@ The `content_scope` field is an opaque identifier that groups sessions by their 
 | API key scoped | API key identifier |
 | Customer agreement | Agreement or contract ID |
 
-This field enables attribution aggregation across sessions using the same content collection without mandating a specific access control model.
+Attribution consumers can aggregate across sessions that share the same `content_scope` without the schema mandating a specific access control model.
 
 #### 3.1.2 Manifest Reference
 
-The `manifest_ref` field optionally references an [AIMS (AI Manifest Standard)](https://github.com/openattribution-org/aims) manifest. This enables:
+The `manifest_ref` field optionally references an [AIMS (AI Manifest Standard)](https://github.com/openattribution-org/aims) manifest. With it, consumers can:
 
-- Verification that cited content was licensed at session time
-- Cross-referencing telemetry with licensing agreements
-- Audit trails for content usage compliance
+- Verify that cited content was licensed at session time
+- Cross-reference telemetry with licensing agreements
+- Build audit trails for content usage compliance
 
 Format: AIMS DID (e.g., `did:aims:abc123`) or URL to manifest.
 
 #### 3.1.3 Cross-Session Attribution
 
-The `prior_session_ids` field enables attribution across multi-session user journeys:
+The `prior_session_ids` field links sessions into multi-session user journeys:
 
 ```
 Day 1: Research session (Session A)
@@ -199,7 +199,7 @@ This separation allows attribution consumers to understand which agent requested
 
 ##### Citation Quality Signals
 
-The `content_cited` event supports optional quality signals in the `data` field to enable more accurate attribution:
+The `content_cited` event supports optional quality signals in the `data` field for more accurate attribution:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -215,7 +215,7 @@ The `content_cited` event supports optional quality signals in the `data` field 
 - `reference`: Mentioned or linked without quoting
 - `contradiction`: Content was retrieved but contradicted/corrected
 
-The `contradiction` type enables negative attribution. Content that was retrieved but explicitly disagreed with should not receive positive credit.
+The `contradiction` type supports negative attribution: content that was retrieved but explicitly disagreed with should not receive positive credit.
 
 **Example:**
 
@@ -329,20 +329,28 @@ This follows the standard pattern used by Stripe and other payment processors.
 
 ## 4. Transport
 
-OpenAttribution is transport-agnostic. Implementations may use:
+OpenAttribution defines a signal format, not a wire protocol. The schema specifies the shape of sessions, events, and outcomes. How you move them is up to your implementation.
 
-- HTTP/REST (recommended for simplicity)
-- gRPC (for high-throughput scenarios)
-- Message queues (for async processing)
-- Direct database writes (for co-located systems)
+Common patterns:
+
+- **HTTP postback** - Agent POSTs events to a telemetry endpoint during or after the session. The reference server and Python SDK implement this.
+- **Bulk upload** - Agent collects signals locally and uploads a complete `TelemetrySession` after it ends. Useful for batch pipelines, offline agents, or post-hoc reporting.
+- **MCP tool calls** - Agent exposes attribution recording as an MCP tool. Signals flow over the existing MCP transport (SSE, stdio, etc.) as part of normal tool use.
+- **Message queues** - High-throughput systems publish signals to Kafka, SQS, etc. A consumer writes to storage.
+- **Direct database writes** - Co-located systems skip HTTP and write session rows directly.
 
 ### 4.1 Recommended HTTP Endpoints
+
+For implementations using HTTP/REST:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/session/start` | POST | Start a new session |
 | `/events` | POST | Record events (batch) |
 | `/session/end` | POST | End session with outcome |
+| `/session/bulk` | POST | Upload a complete session in one request |
+
+The event-by-event endpoints (`start`, `events`, `end`) suit real-time agents that emit signals as they go. The bulk endpoint suits agents that buffer locally and upload after the session closes.
 
 ### 4.2 Authentication
 

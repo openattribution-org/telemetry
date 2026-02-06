@@ -3,18 +3,25 @@
 [![PyPI version](https://badge.fury.io/py/openattribution-telemetry.svg)](https://badge.fury.io/py/openattribution-telemetry)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**SDK for AI content attribution telemetry - track what content influenced outcomes.**
+**Open signal format for AI content attribution. Track what content influenced outcomes.**
 
 Part of the [OpenAttribution](https://openattribution.org) project.
 
 ## What is OpenAttribution?
 
-OpenAttribution is a set of open standards for tracking how AI systems use content and verifying compliance with licensing terms. The standard defines **what signals to emit**, not how to use them. Attribution algorithms, compensation structures, and business arrangements remain your domain.
+OpenAttribution defines a **schema** for content attribution signals in AI agent interactions. It specifies the shape of the data, not how you move it. Your implementation chooses the transport: HTTP postback, SSE via MCP tool calls, message queues, direct database writes, whatever fits.
+
+This repo contains:
+- **Schema** (Pydantic models) for sessions, events, outcomes, and privacy levels
+- **Python SDK client** for emitting signals over HTTP
+- **Reference server** (FastAPI + PostgreSQL) for receiving and storing them
 
 | Standard | Question It Answers |
 |----------|---------------------|
 | **OpenAttribution Telemetry** | What content influenced this outcome? |
 | **[OpenAttribution AIMS](https://github.com/openattribution-org/aims)** | What can this AI legally access? |
+
+See [SPECIFICATION.md](./SPECIFICATION.md) for the full protocol spec and [schema.json](./schema.json) for cross-language implementations.
 
 ## Installation
 
@@ -28,7 +35,7 @@ Or with uv:
 uv add openattribution-telemetry
 ```
 
-## Quick Start
+## Quick Start (Python SDK)
 
 ```python
 import asyncio
@@ -128,7 +135,7 @@ The server generates its own session ID and stores the caller's `session_id` as 
 
 ## Session Model
 
-A **Session** represents a bounded interaction between an end user and an AI agent:
+A **session** tracks one interaction between a user (or agent) and an AI agent:
 
 ```
 Session
@@ -186,9 +193,21 @@ Control what conversation data is shared based on trust relationships:
 | `intent` | ✗ | ✓ | ✓ | ✓ | ✓ |
 | `minimal` | ✗ | ✗ | ✗ | ✓ | ✓ |
 
-## MCP Tool Integration
+## Transport
 
-Expose attribution as an MCP tool:
+OpenAttribution is transport-agnostic. The schema defines the signal shape; you pick how to deliver it.
+
+| Pattern | When to use |
+|---------|-------------|
+| **HTTP postback** | Agent fires events to a telemetry endpoint during or after a session. The SDK client and reference server implement this. |
+| **Bulk upload** | Agent collects signals locally, uploads a complete session after it ends. Good for batch pipelines or offline agents. |
+| **MCP tool** | Agent exposes an MCP tool that records attribution inline during conversation turns. Works well with SSE-based MCP transports. |
+| **Message queue** | High-throughput systems publish signals to Kafka, SQS, etc. Consumer writes to storage. |
+| **Direct DB write** | Co-located systems skip HTTP and write session rows directly. |
+
+### MCP Tool Example
+
+Wrap the SDK client in an MCP tool so the agent records attribution as part of its normal tool-use flow:
 
 ```python
 @server.tool()
@@ -211,28 +230,21 @@ async def record_attribution(
     return "Attribution recorded"
 ```
 
-## Reference Server Implementation
+## Reference Server
 
-A complete server implementation is available in the [`server/`](./server/) directory:
+A working server implementation lives in [`server/`](./server/):
 
 ```bash
 pip install openattribution-telemetry-server
 ```
 
-The server provides:
-- FastAPI-based REST API matching the client SDK
+It provides:
+- REST API matching the SDK client (`/session/start`, `/events`, `/session/end`)
 - Bulk session upload (`POST /session/bulk`) for post-hoc reporting
-- PostgreSQL storage with optimized schema
-- Internal endpoints for attribution systems
-- Ready for production use or as a starting point
+- Internal query endpoints for attribution systems
+- PostgreSQL storage
 
-See [`server/README.md`](./server/README.md) for details.
-
-## Related Standards
-
-- **[SPECIFICATION.md](./SPECIFICATION.md)** - Full protocol specification
-- **[schema.json](./schema.json)** - JSON Schema for cross-language implementations
-- **[OpenAttribution AIMS](https://github.com/openattribution-org/aims)** - AI Manifest Standard for licensing and trust
+See [`server/README.md`](./server/README.md) for setup and deployment.
 
 ## Get Involved
 
