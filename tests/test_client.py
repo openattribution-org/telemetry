@@ -13,6 +13,7 @@ from openattribution.telemetry import (
     ConversationTurn,
     SessionOutcome,
     TelemetryEvent,
+    TelemetrySession,
     UserContext,
 )
 
@@ -556,6 +557,72 @@ class TestErrorHandling:
             result = await client.start_session(content_scope="test")
             assert result is None
             assert mock_req.call_count == 3
+
+
+class TestUploadSession:
+    """Tests for upload_session method."""
+
+    @pytest.mark.asyncio
+    async def test_upload_session(self, client, mock_response):
+        """Test uploading a complete session."""
+        server_session_id = uuid4()
+        caller_session_id = uuid4()
+
+        session = TelemetrySession(
+            session_id=caller_session_id,
+            initiator_type="agent",
+            agent_id="test-agent",
+            content_scope="test-scope",
+            started_at=datetime.now(UTC),
+            events=[
+                TelemetryEvent(
+                    id=uuid4(),
+                    type="content_retrieved",
+                    timestamp=datetime.now(UTC),
+                    content_id=uuid4(),
+                ),
+            ],
+            outcome=SessionOutcome(type="conversion", value_amount=5000),
+        )
+
+        with patch.object(
+            client.client,
+            "request",
+            new_callable=AsyncMock,
+            return_value=mock_response({"session_id": str(server_session_id)}),
+        ) as mock_req:
+            result = await client.upload_session(session)
+
+            assert result == server_session_id
+            mock_req.assert_called_once()
+            call_args = mock_req.call_args
+            assert call_args[0][0] == "POST"
+            assert call_args[0][1] == "https://api.example.com/telemetry/session/bulk"
+
+    @pytest.mark.asyncio
+    async def test_upload_session_silent_failure(self, mock_response):
+        """Test upload_session returns None on silent failure."""
+        client = Client(
+            endpoint="https://api.example.com/telemetry",
+            api_key="test-api-key",
+            fail_silently=True,
+            max_retries=0,
+        )
+        error_resp = mock_response({"error": "fail"}, status_code=500)
+
+        session = TelemetrySession(
+            session_id=uuid4(),
+            started_at=datetime.now(UTC),
+        )
+
+        with patch.object(
+            client.client,
+            "request",
+            new_callable=AsyncMock,
+            return_value=error_resp,
+        ):
+            result = await client.upload_session(session)
+            assert result is None
 
 
 class TestNoneSessionShortCircuit:

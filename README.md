@@ -88,6 +88,44 @@ async def main():
 asyncio.run(main())
 ```
 
+### Bulk Upload
+
+If your agent collects telemetry locally and uploads after the session ends, use `upload_session` to send everything in one request:
+
+```python
+from datetime import UTC, datetime
+from uuid import uuid4
+
+from openattribution.telemetry import (
+    Client,
+    SessionOutcome,
+    TelemetryEvent,
+    TelemetrySession,
+)
+
+session = TelemetrySession(
+    session_id=uuid4(),
+    initiator_type="agent",
+    agent_id="my-agent",
+    content_scope="my-content-mix",
+    started_at=datetime.now(UTC),
+    events=[
+        TelemetryEvent(
+            id=uuid4(),
+            type="content_retrieved",
+            timestamp=datetime.now(UTC),
+            content_id=uuid4(),
+        ),
+    ],
+    outcome=SessionOutcome(type="conversion", value_amount=9999),
+)
+
+async with Client(endpoint="https://api.example.com/telemetry", api_key="key") as client:
+    server_session_id = await client.upload_session(session)
+```
+
+The server generates its own session ID and stores the caller's `session_id` as `external_session_id`.
+
 ## Session Model
 
 A **Session** represents a bounded interaction between an end user and an AI agent:
@@ -183,6 +221,7 @@ pip install openattribution-telemetry-server
 
 The server provides:
 - FastAPI-based REST API matching the client SDK
+- Bulk session upload (`POST /session/bulk`) for post-hoc reporting
 - PostgreSQL storage with optimized schema
 - Internal endpoints for attribution systems
 - Ready for production use or as a starting point

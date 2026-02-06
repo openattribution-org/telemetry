@@ -231,3 +231,99 @@ class TestSessionAPI:
         response = await client.get("/health")
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
+
+
+@pytest.mark.integration
+class TestBulkUploadAPI:
+    """Tests for POST /session/bulk endpoint."""
+
+    async def test_bulk_full_session(self, client: AsyncClient):
+        """Bulk upload with session + events + outcome."""
+        caller_session_id = str(uuid4())
+        response = await client.post(
+            "/session/bulk",
+            json={
+                "session_id": caller_session_id,
+                "initiator_type": "agent",
+                "agent_id": "test-agent",
+                "content_scope": "test-scope",
+                "started_at": datetime.now(UTC).isoformat(),
+                "events": [
+                    {
+                        "id": str(uuid4()),
+                        "type": "content_retrieved",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "content_id": str(uuid4()),
+                        "data": {"query": "best headphones"},
+                    },
+                    {
+                        "id": str(uuid4()),
+                        "type": "content_displayed",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "data": {},
+                    },
+                ],
+                "outcome": {
+                    "type": "conversion",
+                    "value_amount": 9999,
+                    "currency": "USD",
+                },
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert "session_id" in data
+        # Server generates its own ID (different from caller's)
+        assert data["session_id"] != caller_session_id
+        assert data["events_created"] == 2
+        assert data["outcome_recorded"] is True
+
+        # Verify via internal API
+        session_id = data["session_id"]
+        internal = await client.get(f"/internal/sessions/{session_id}")
+        assert internal.status_code == 200
+        session_data = internal.json()
+        assert session_data["external_session_id"] == caller_session_id
+        assert session_data["outcome_type"] == "conversion"
+        assert len(session_data["events"]) == 2
+
+    async def test_bulk_session_with_events_no_outcome(self, client: AsyncClient):
+        """Bulk upload with session + events but no outcome."""
+        response = await client.post(
+            "/session/bulk",
+            json={
+                "session_id": str(uuid4()),
+                "started_at": datetime.now(UTC).isoformat(),
+                "agent_id": "test-agent",
+                "events": [
+                    {
+                        "id": str(uuid4()),
+                        "type": "content_retrieved",
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "data": {},
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["events_created"] == 1
+        assert data["outcome_recorded"] is False
+
+    async def test_bulk_session_only(self, client: AsyncClient):
+        """Bulk upload with session only (no events, no outcome)."""
+        response = await client.post(
+            "/session/bulk",
+            json={
+                "session_id": str(uuid4()),
+                "started_at": datetime.now(UTC).isoformat(),
+                "content_scope": "minimal-scope",
+            },
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["events_created"] == 0
+        assert data["outcome_recorded"] is False

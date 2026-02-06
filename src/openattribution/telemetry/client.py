@@ -17,6 +17,7 @@ from openattribution.telemetry.schema import (
     InitiatorType,
     SessionOutcome,
     TelemetryEvent,
+    TelemetrySession,
     UserContext,
 )
 
@@ -272,6 +273,27 @@ class Client:
                 "outcome": outcome.model_dump(),
             },
         )
+
+    async def upload_session(
+        self,
+        session: TelemetrySession,
+    ) -> UUID | None:
+        """Upload a complete session in one request.
+
+        Args:
+            session: Complete TelemetrySession with events and optional outcome.
+
+        Returns:
+            Server-generated session UUID, or None on silent failure.
+        """
+        response = await self._request(
+            "POST",
+            f"{self.endpoint}/session/bulk",
+            json=session.model_dump(mode="json"),
+        )
+        if response is None:
+            return None
+        return UUID(response.json()["session_id"])
 
     async def close(self) -> None:
         """Close the HTTP client."""
