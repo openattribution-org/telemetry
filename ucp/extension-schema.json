@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openattribution.org/ucp/schemas/extension.json",
+  "name": "org.openattribution.telemetry",
+  "title": "OpenAttribution Telemetry Extension for UCP",
+  "description": "UCP extension for content attribution telemetry. Extends dev.ucp.shopping.checkout to track which content influenced commerce outcomes.",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "https://ucp.dev/schemas/shopping/checkout.json"
+    },
+    {
+      "type": "object",
+      "properties": {
+        "attribution": {
+          "$ref": "#/$defs/Attribution"
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "Attribution": {
+      "type": "object",
+      "description": "Content attribution data for the checkout session",
+      "properties": {
+        "content_scope": {
+          "type": "string",
+          "description": "Opaque content collection identifier. Implementer-defined: mix ID, API key scope, or agreement ID."
+        },
+        "prior_session_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Previous session IDs in the user journey, enabling cross-session attribution for multi-day purchase paths."
+        },
+        "content_retrieved": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContentRetrieved"
+          },
+          "description": "Content fetched during the session that may have influenced the purchase decision."
+        },
+        "content_cited": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ContentCited"
+          },
+          "description": "Content explicitly used or referenced in agent responses."
+        },
+        "conversation_summary": {
+          "$ref": "#/$defs/ConversationSummary",
+          "description": "Privacy-preserving summary of the conversation that led to checkout."
+        }
+      }
+    },
+    "ContentRetrieved": {
+      "type": "object",
+      "description": "Content fetched during the session",
+      "required": ["content_id", "timestamp"],
+      "properties": {
+        "content_id": {
+          "type": "string",
+          "description": "Unique content identifier (UUID or implementer-defined ID)"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the content was retrieved (UTC)"
+        },
+        "source_id": {
+          "type": "string",
+          "description": "Content source/publisher identifier"
+        }
+      }
+    },
+    "ContentCited": {
+      "type": "object",
+      "description": "Content cited in an agent response with quality signals",
+      "required": ["content_id", "timestamp"],
+      "properties": {
+        "content_id": {
+          "type": "string",
+          "description": "Unique content identifier"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the content was cited (UTC)"
+        },
+        "citation_type": {
+          "type": "string",
+          "enum": ["direct_quote", "paraphrase", "reference", "contradiction"],
+          "description": "How the content was used. 'contradiction' enables negative attribution for content that was retrieved but disagreed with."
+        },
+        "excerpt_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Token count of the excerpt used, distinguishing a 2-sentence snippet from a 10,000-word guide."
+        },
+        "position": {
+          "type": "string",
+          "enum": ["primary", "supporting", "mentioned"],
+          "description": "Prominence in the response. 'primary' = main basis for answer, 'supporting' = additional evidence, 'mentioned' = referenced but not relied upon."
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "SHA256 hash of cited content for verification (format: 'sha256:abc123...')"
+        }
+      }
+    },
+    "ConversationSummary": {
+      "type": "object",
+      "description": "Privacy-preserving conversation summary",
+      "properties": {
+        "turn_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of conversation turns before checkout"
+        },
+        "primary_intent": {
+          "type": "string",
+          "enum": [
+            "product_research",
+            "comparison",
+            "how_to",
+            "troubleshooting",
+            "general_question",
+            "purchase_intent",
+            "price_check",
+            "availability_check",
+            "review_seeking",
+            "chitchat",
+            "other"
+          ],
+          "description": "Dominant intent across the conversation"
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Key topics/entities discussed (e.g., ['headphones', 'noise-cancelling', 'Sony'])"
+        },
+        "total_content_retrieved": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total content pieces retrieved across all turns"
+        },
+        "total_content_cited": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total content pieces cited across all turns"
+        }
+      }
+    }
+  }
+}

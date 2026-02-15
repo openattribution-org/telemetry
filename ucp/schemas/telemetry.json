@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openattribution.org/ucp/schemas/telemetry.json",
+  "title": "OpenAttribution Telemetry",
+  "description": "Track content influence in AI shopping conversations. Standalone capability for full session lifecycle management.",
+
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO 4217 currency code"
+    },
+
+    "privacy_level": {
+      "type": "string",
+      "enum": ["full", "summary", "intent", "minimal"],
+      "description": "Data sharing level controlling what conversation data is included"
+    },
+
+    "initiator_type": {
+      "type": "string",
+      "enum": ["user", "agent"],
+      "default": "user"
+    },
+
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "content_retrieved",
+        "content_displayed",
+        "content_engaged",
+        "content_cited",
+        "turn_started",
+        "turn_completed",
+        "product_viewed",
+        "product_compared",
+        "cart_add",
+        "cart_remove",
+        "checkout_started",
+        "checkout_completed",
+        "checkout_abandoned"
+      ]
+    },
+
+    "outcome_type": {
+      "type": "string",
+      "enum": ["conversion", "abandonment", "browse"]
+    },
+
+    "intent_category": {
+      "type": "string",
+      "enum": [
+        "product_research",
+        "comparison",
+        "how_to",
+        "troubleshooting",
+        "general_question",
+        "purchase_intent",
+        "price_check",
+        "availability_check",
+        "review_seeking",
+        "chitchat",
+        "other"
+      ]
+    },
+
+    "citation_type": {
+      "type": "string",
+      "enum": ["direct_quote", "paraphrase", "reference", "contradiction"]
+    },
+
+    "position_type": {
+      "type": "string",
+      "enum": ["primary", "supporting", "mentioned"]
+    },
+
+    "user_context": {
+      "type": "object",
+      "properties": {
+        "external_id": {
+          "type": "string",
+          "description": "Opaque user identifier (not PII)"
+        },
+        "segments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "User segment labels"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "initiator": {
+      "type": "object",
+      "description": "Identity of calling agent when initiator_type is 'agent'",
+      "properties": {
+        "agent_id": { "type": "string" },
+        "operator_id": {
+          "type": "string",
+          "description": "Organization operating the calling agent"
+        }
+      }
+    },
+
+    "conversation_turn": {
+      "type": "object",
+      "required": ["privacy_level"],
+      "properties": {
+        "privacy_level": { "$ref": "#/$defs/privacy_level" },
+        "query_text": { "type": "string" },
+        "response_text": { "type": "string" },
+        "query_intent": { "$ref": "#/$defs/intent_category" },
+        "response_type": { "type": "string" },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "content_ids_retrieved": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uuid" }
+        },
+        "content_ids_cited": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uuid" }
+        },
+        "query_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "response_tokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "model_id": { "type": "string" }
+      }
+    },
+
+    "event": {
+      "type": "object",
+      "required": ["type", "timestamp"],
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "type": { "$ref": "#/$defs/event_type" },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "content_id": { "$ref": "#/$defs/uuid" },
+        "product_id": { "$ref": "#/$defs/uuid" },
+        "turn": { "$ref": "#/$defs/conversation_turn" },
+        "data": {
+          "type": "object",
+          "properties": {
+            "citation_type": { "$ref": "#/$defs/citation_type" },
+            "excerpt_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "position": { "$ref": "#/$defs/position_type" },
+            "content_hash": {
+              "type": "string",
+              "description": "SHA256 of cited content"
+            },
+            "engagement_type": { "type": "string" },
+            "order_value_amount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Value in minor currency units"
+            },
+            "currency": { "$ref": "#/$defs/currency" },
+            "product_ids": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/uuid" }
+            },
+            "cart_value_amount": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "session_outcome": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "$ref": "#/$defs/outcome_type" },
+        "value_amount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Value in minor currency units (cents)"
+        },
+        "currency": { "$ref": "#/$defs/currency" },
+        "products": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uuid" }
+        },
+        "checkout_id": {
+          "type": "string",
+          "description": "UCP checkout session ID for linking"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "telemetry_session": {
+      "type": "object",
+      "required": ["schema_version", "session_id", "started_at"],
+      "properties": {
+        "schema_version": {
+          "type": "string",
+          "const": "0.3"
+        },
+        "session_id": { "$ref": "#/$defs/uuid" },
+        "initiator_type": { "$ref": "#/$defs/initiator_type" },
+        "initiator": { "$ref": "#/$defs/initiator" },
+        "agent_id": { "type": "string" },
+        "content_scope": { "type": "string" },
+        "prior_session_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uuid" }
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "ended_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "user_context": { "$ref": "#/$defs/user_context" },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/event" }
+        },
+        "outcome": { "$ref": "#/$defs/session_outcome" }
+      }
+    }
+  },
+
+  "type": "object",
+  "description": "Root schema for OpenAttribution Telemetry capability",
+  "properties": {
+    "start_session_request": {
+      "type": "object",
+      "required": ["agent_id"],
+      "properties": {
+        "agent_id": { "type": "string" },
+        "initiator_type": { "$ref": "#/$defs/initiator_type" },
+        "initiator": { "$ref": "#/$defs/initiator" },
+        "content_scope": { "type": "string" },
+        "prior_session_ids": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uuid" }
+        },
+        "user_context": { "$ref": "#/$defs/user_context" }
+      }
+    },
+
+    "start_session_response": {
+      "type": "object",
+      "required": ["session_id", "started_at"],
+      "properties": {
+        "session_id": { "$ref": "#/$defs/uuid" },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+
+    "record_events_request": {
+      "type": "object",
+      "required": ["events"],
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/event" },
+          "minItems": 1,
+          "maxItems": 100
+        }
+      }
+    },
+
+    "end_session_request": {
+      "type": "object",
+      "required": ["outcome"],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/session_outcome" }
+      }
+    },
+
+    "bulk_session": { "$ref": "#/$defs/telemetry_session" }
+  }
+}

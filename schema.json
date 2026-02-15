@@ -1,0 +1,316 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openattribution.org/schema/v0.3/telemetry-session.json",
+  "title": "OpenAttribution Telemetry Session",
+  "description": "Schema for OpenAttribution telemetry sessions - tracking content attribution in AI agent interactions",
+  "type": "object",
+  "required": ["schema_version", "session_id", "started_at"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "0.3",
+      "description": "OpenAttribution schema version"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique session identifier"
+    },
+    "initiator_type": {
+      "type": "string",
+      "enum": ["user", "agent"],
+      "default": "user",
+      "description": "Who started the session: 'user' (human, default) or 'agent' (another AI agent)"
+    },
+    "initiator": {
+      "oneOf": [{ "$ref": "#/$defs/Initiator" }, { "type": "null" }],
+      "description": "Initiator identity when initiator_type is 'agent'"
+    },
+    "agent_id": {
+      "type": ["string", "null"],
+      "description": "Responding agent identifier for multi-agent systems"
+    },
+    "content_scope": {
+      "type": ["string", "null"],
+      "description": "Opaque content collection identifier (e.g., mix ID, manifest DID, API key scope)"
+    },
+    "manifest_ref": {
+      "type": ["string", "null"],
+      "description": "AIMS manifest reference for licensing verification (e.g., 'did:aims:abc123')"
+    },
+    "prior_session_ids": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" },
+      "description": "Previous session IDs in user journey for cross-session attribution"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Session start timestamp (UTC)"
+    },
+    "ended_at": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "Session end timestamp (UTC)"
+    },
+    "user_context": {
+      "$ref": "#/$defs/UserContext"
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TelemetryEvent"
+      },
+      "description": "Ordered list of events in the session"
+    },
+    "outcome": {
+      "oneOf": [{ "$ref": "#/$defs/SessionOutcome" }, { "type": "null" }],
+      "description": "Final session outcome"
+    }
+  },
+  "$defs": {
+    "Initiator": {
+      "type": "object",
+      "description": "Identity of the initiating agent (used when initiator_type is 'agent')",
+      "properties": {
+        "agent_id": {
+          "type": ["string", "null"],
+          "description": "Calling agent's identifier"
+        },
+        "manifest_ref": {
+          "type": ["string", "null"],
+          "description": "Calling agent's AIMS manifest reference"
+        },
+        "operator_id": {
+          "type": ["string", "null"],
+          "description": "Organization operating the calling agent"
+        }
+      }
+    },
+    "UserContext": {
+      "type": "object",
+      "description": "User context for personalization and segmentation",
+      "properties": {
+        "external_id": {
+          "type": ["string", "null"],
+          "description": "Opaque user identifier (not PII - use hashed/synthetic ID)"
+        },
+        "segments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "User segment labels (e.g., ['premium', 'returning'])"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional context attributes"
+        }
+      }
+    },
+    "TelemetryEvent": {
+      "type": "object",
+      "description": "Single telemetry event within a session",
+      "required": ["id", "type", "timestamp"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Unique event identifier"
+        },
+        "type": {
+          "$ref": "#/$defs/EventType"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Event timestamp (UTC)"
+        },
+        "content_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "Associated content document UUID"
+        },
+        "product_id": {
+          "type": ["string", "null"],
+          "format": "uuid",
+          "description": "Associated product UUID"
+        },
+        "turn": {
+          "oneOf": [{ "$ref": "#/$defs/ConversationTurn" }, { "type": "null" }],
+          "description": "Conversation turn data (for turn_started/turn_completed)"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional event-specific metadata. For content_cited events, supports citation quality signals: citation_type (direct_quote|paraphrase|reference|contradiction), excerpt_tokens (integer), position (primary|supporting|mentioned), content_hash (SHA256 for verification)"
+        }
+      }
+    },
+    "EventType": {
+      "type": "string",
+      "description": "Supported event types for telemetry tracking",
+      "enum": [
+        "content_retrieved",
+        "content_displayed",
+        "content_engaged",
+        "content_cited",
+        "turn_started",
+        "turn_completed",
+        "product_viewed",
+        "product_compared",
+        "cart_add",
+        "cart_remove",
+        "checkout_started",
+        "checkout_completed",
+        "checkout_abandoned"
+      ]
+    },
+    "ConversationTurn": {
+      "type": "object",
+      "description": "Conversation turn with privacy controls",
+      "required": ["privacy_level"],
+      "properties": {
+        "privacy_level": {
+          "$ref": "#/$defs/PrivacyLevel"
+        },
+        "query_text": {
+          "type": ["string", "null"],
+          "description": "User's query (full/summary levels only)"
+        },
+        "response_text": {
+          "type": ["string", "null"],
+          "description": "Agent's response (full/summary levels only)"
+        },
+        "query_intent": {
+          "oneOf": [{ "$ref": "#/$defs/IntentCategory" }, { "type": "null" }],
+          "description": "Classified intent category"
+        },
+        "response_type": {
+          "type": ["string", "null"],
+          "description": "Response classification (e.g., 'recommendation', 'explanation')"
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Detected topics/entities"
+        },
+        "content_ids_retrieved": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "description": "Content fetched to answer the query"
+        },
+        "content_ids_cited": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "description": "Content used/cited in response"
+        },
+        "query_tokens": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Query token count"
+        },
+        "response_tokens": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Response token count"
+        },
+        "model_id": {
+          "type": ["string", "null"],
+          "description": "Model identifier (e.g., 'claude-3-opus')"
+        }
+      }
+    },
+    "PrivacyLevel": {
+      "type": "string",
+      "description": "Privacy levels for conversation data sharing",
+      "enum": ["full", "summary", "intent", "minimal"]
+    },
+    "IntentCategory": {
+      "type": "string",
+      "description": "Standardized intent categories",
+      "enum": [
+        "product_research",
+        "comparison",
+        "how_to",
+        "troubleshooting",
+        "general_question",
+        "purchase_intent",
+        "price_check",
+        "availability_check",
+        "review_seeking",
+        "chitchat",
+        "other"
+      ]
+    },
+    "SessionOutcome": {
+      "type": "object",
+      "description": "Session outcome for attribution calculation",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/OutcomeType"
+        },
+        "value_amount": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Monetary value in minor currency units (cents, pence, yen)"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "default": "USD",
+          "description": "ISO 4217 currency code"
+        },
+        "products": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "description": "Product UUIDs involved in outcome"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional outcome details"
+        }
+      }
+    },
+    "OutcomeType": {
+      "type": "string",
+      "description": "Session outcome classifications",
+      "enum": ["conversion", "abandonment", "browse"]
+    },
+    "CitationType": {
+      "type": "string",
+      "description": "How content was used in the response",
+      "enum": ["direct_quote", "paraphrase", "reference", "contradiction"]
+    },
+    "CitationPosition": {
+      "type": "string",
+      "description": "Prominence of citation in response",
+      "enum": ["primary", "supporting", "mentioned"]
+    },
+    "CitationData": {
+      "type": "object",
+      "description": "Citation quality signals for content_cited events. All fields optional.",
+      "properties": {
+        "citation_type": {
+          "$ref": "#/$defs/CitationType"
+        },
+        "excerpt_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Token count of the excerpt used"
+        },
+        "position": {
+          "$ref": "#/$defs/CitationPosition"
+        },
+        "content_hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "SHA256 hash of cited content for verification (format: 'sha256:abc123...')"
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

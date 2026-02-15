@@ -1,0 +1,770 @@
+# UCP Extension Specification: OpenAttribution Telemetry
+#
+# Tracks which content influenced AI shopping conversation outcomes.
+# Enables fair creator compensation and cross-platform attribution.
+#
+# Specification: https://openattribution.org/ucp/telemetry
+# Schema: https://openattribution.org/ucp/schemas/telemetry.json
+# Reference Implementation: https://github.com/openattribution-org/telemetry
+
+capability:
+  name: org.openattribution.telemetry
+  version: "2026-02-11"
+  status: draft
+  spec: https://openattribution.org/ucp/telemetry
+  schema: https://openattribution.org/ucp/schemas/telemetry.json
+
+namespace:
+  authority: openattribution.org
+  governance: OpenAttribution Project
+  contact: standards@openattribution.org
+
+description: |
+  Track content influence across AI shopping conversations. Records which
+  content was retrieved, presented, and influenced purchase outcomes.
+
+  Key capabilities:
+  - Session lifecycle management (start, events, end)
+  - Content retrieval and citation tracking
+  - Commerce outcome attribution with UCP checkout linking
+  - Privacy-preserving data sharing levels
+  - Agent-to-agent session chaining
+
+  This extension complements UCP checkout flows by answering: "Which content
+  influenced this purchase?" — enabling fair creator compensation.
+
+# ------------------------------------------------------------------------------
+# Transport Bindings
+# ------------------------------------------------------------------------------
+
+services:
+  rest:
+    version: "2026-02-11"
+    schema: https://openattribution.org/ucp/openapi/telemetry.json
+    # Endpoint provided by business profile
+
+  mcp:
+    version: "2026-02-11"
+    schema: https://openattribution.org/ucp/openrpc/telemetry.json
+    # Endpoint provided by business profile
+
+# ------------------------------------------------------------------------------
+# Authentication
+# ------------------------------------------------------------------------------
+
+authentication:
+  - type: api_key
+    header: X-API-Key
+    description: |
+      API key scoped to a content mix. Same key used for content search.
+      Format: nai_mix_{random} or provider-specific format.
+
+  - type: bearer
+    header: Authorization
+    description: |
+      OAuth 2.0 bearer token for user-linked sessions.
+      Required when initiator_type is "user" and privacy_level is "full".
+
+# ------------------------------------------------------------------------------
+# REST API Operations
+# ------------------------------------------------------------------------------
+
+operations:
+  # Start a new attribution session
+  start_session:
+    method: POST
+    path: /telemetry/sessions
+    summary: Start attribution tracking session
+    description: |
+      Creates a new session to track content influence. Call at the start of
+      an AI shopping conversation. Returns a session_id for subsequent events.
+
+    request:
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/StartSessionRequest"
+
+    response:
+      status: 201
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/StartSessionResponse"
+
+    errors:
+      - status: 400
+        code: invalid_request
+        description: Missing required fields or invalid format
+      - status: 401
+        code: unauthorized
+        description: Invalid or missing API key
+      - status: 429
+        code: rate_limited
+        description: Rate limit exceeded
+
+  # Record events during the session
+  record_events:
+    method: POST
+    path: /telemetry/sessions/{session_id}/events
+    summary: Record content interaction events
+    description: |
+      Records one or more events in a session. Events track content retrieval,
+      citations, user engagement, and commerce actions.
+
+      Events are ordered by timestamp. Batch multiple events in one call for
+      efficiency.
+
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    request:
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/RecordEventsRequest"
+
+    response:
+      status: 200
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/RecordEventsResponse"
+
+    errors:
+      - status: 404
+        code: session_not_found
+        description: Session does not exist or has ended
+      - status: 409
+        code: session_ended
+        description: Cannot add events to an ended session
+
+  # End session with outcome
+  end_session:
+    method: POST
+    path: /telemetry/sessions/{session_id}/outcome
+    summary: End session with outcome
+    description: |
+      Ends a session and records the final outcome. Links to UCP checkout_id
+      when outcome is a purchase.
+
+      After calling this, no more events can be added to the session.
+
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    request:
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/EndSessionRequest"
+
+    response:
+      status: 200
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/EndSessionResponse"
+
+  # Bulk upload complete session (alternative flow)
+  upload_session:
+    method: POST
+    path: /telemetry/sessions/bulk
+    summary: Upload complete session
+    description: |
+      Alternative to event-by-event tracking. Upload a complete session with
+      all events and outcome in one request.
+
+      Useful for agents that buffer locally and upload after the conversation.
+
+    request:
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/TelemetrySession"
+
+    response:
+      status: 201
+      content_type: application/json
+      schema:
+        $ref: "#/schemas/UploadSessionResponse"
+
+# ------------------------------------------------------------------------------
+# MCP Tools
+# ------------------------------------------------------------------------------
+
+mcp_tools:
+  - name: openattribution_start_session
+    description: Start an attribution tracking session for the conversation
+    inputSchema:
+      $ref: "#/schemas/StartSessionRequest"
+    outputSchema:
+      $ref: "#/schemas/StartSessionResponse"
+
+  - name: openattribution_record_event
+    description: Record a content interaction event (retrieval, citation, engagement)
+    inputSchema:
+      type: object
+      required: [session_id, event]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        event:
+          $ref: "#/schemas/Event"
+
+  - name: openattribution_end_session
+    description: End the session with outcome (purchase, browse, abandonment)
+    inputSchema:
+      type: object
+      required: [session_id, outcome]
+      properties:
+        session_id:
+          type: string
+          format: uuid
+        outcome:
+          $ref: "#/schemas/SessionOutcome"
+
+# ------------------------------------------------------------------------------
+# Schemas (aligned with OpenAttribution Specification v0.3)
+# ------------------------------------------------------------------------------
+
+schemas:
+  StartSessionRequest:
+    type: object
+    required: [agent_id]
+    properties:
+      agent_id:
+        type: string
+        description: Identifier for the responding agent
+        example: "shopping-assistant-v2"
+
+      initiator_type:
+        type: string
+        enum: [user, agent]
+        default: user
+        description: |
+          Who started the session: "user" (human) or "agent" (another AI agent).
+          Agent-initiated sessions enable multi-hop attribution chains.
+
+      initiator:
+        type: object
+        description: Identity of calling agent (when initiator_type is "agent")
+        properties:
+          agent_id:
+            type: string
+          operator_id:
+            type: string
+            description: Organization operating the calling agent
+
+      content_scope:
+        type: string
+        description: |
+          Opaque identifier grouping sessions by content access context.
+          Examples: mix ID, API key identifier, agreement ID.
+        example: "electronics-reviews"
+
+      prior_session_ids:
+        type: array
+        items:
+          type: string
+          format: uuid
+        description: |
+          Previous session IDs in this user journey. Enables multi-session
+          attribution (research → comparison → purchase over multiple days).
+
+      user_context:
+        $ref: "#/schemas/UserContext"
+
+  StartSessionResponse:
+    type: object
+    required: [session_id, started_at]
+    properties:
+      session_id:
+        type: string
+        format: uuid
+      started_at:
+        type: string
+        format: date-time
+
+  RecordEventsRequest:
+    type: object
+    required: [events]
+    properties:
+      events:
+        type: array
+        items:
+          $ref: "#/schemas/Event"
+        minItems: 1
+        maxItems: 100
+
+  RecordEventsResponse:
+    type: object
+    properties:
+      recorded_count:
+        type: integer
+      session_id:
+        type: string
+        format: uuid
+
+  EndSessionRequest:
+    type: object
+    required: [outcome]
+    properties:
+      outcome:
+        $ref: "#/schemas/SessionOutcome"
+
+  EndSessionResponse:
+    type: object
+    properties:
+      session_id:
+        type: string
+        format: uuid
+      ended_at:
+        type: string
+        format: date-time
+      outcome_type:
+        type: string
+        enum: [conversion, abandonment, browse]
+      attribution_pending:
+        type: boolean
+        description: Whether attribution calculation is still processing
+
+  Event:
+    type: object
+    required: [type, timestamp]
+    properties:
+      id:
+        type: string
+        format: uuid
+        description: Unique event identifier (generated if not provided)
+
+      type:
+        type: string
+        enum:
+          # Content lifecycle events
+          - content_retrieved
+          - content_displayed
+          - content_engaged
+          - content_cited
+          # Conversation events
+          - turn_started
+          - turn_completed
+          # Commerce events
+          - product_viewed
+          - product_compared
+          - cart_add
+          - cart_remove
+          - checkout_started
+          - checkout_completed
+          - checkout_abandoned
+        description: Event type per OpenAttribution Specification v0.3
+
+      timestamp:
+        type: string
+        format: date-time
+        description: Event timestamp (UTC)
+
+      content_id:
+        type: string
+        format: uuid
+        description: Associated content document ID
+
+      product_id:
+        type: string
+        format: uuid
+        description: Associated product ID
+
+      turn:
+        $ref: "#/schemas/ConversationTurn"
+        description: Conversation data (for turn_started/turn_completed)
+
+      data:
+        type: object
+        description: Additional event-specific data
+        additionalProperties: true
+        properties:
+          # Citation quality signals
+          citation_type:
+            type: string
+            enum: [direct_quote, paraphrase, reference, contradiction]
+          excerpt_tokens:
+            type: integer
+            description: Token count of cited excerpt
+          position:
+            type: string
+            enum: [primary, supporting, mentioned]
+          content_hash:
+            type: string
+            description: SHA256 of cited content (verification)
+          # Commerce event data
+          order_value_amount:
+            type: integer
+            description: Value in minor currency units (cents)
+          currency:
+            type: string
+            pattern: "^[A-Z]{3}$"
+
+  ConversationTurn:
+    type: object
+    required: [privacy_level]
+    properties:
+      privacy_level:
+        type: string
+        enum: [full, summary, intent, minimal]
+        description: |
+          Data sharing level:
+          - full: Query/response text included
+          - summary: Summarized text
+          - intent: Intent and topics only
+          - minimal: Token counts and content IDs only
+
+      query_text:
+        type: string
+        description: User's query (full or summary, depending on privacy_level)
+
+      response_text:
+        type: string
+        description: Agent's response (full or summary)
+
+      query_intent:
+        type: string
+        enum:
+          - product_research
+          - comparison
+          - how_to
+          - troubleshooting
+          - general_question
+          - purchase_intent
+          - price_check
+          - availability_check
+          - review_seeking
+          - chitchat
+          - other
+        description: Classified intent category
+
+      response_type:
+        type: string
+        description: Response classification
+
+      topics:
+        type: array
+        items:
+          type: string
+        description: Detected topics/entities
+
+      content_ids_retrieved:
+        type: array
+        items:
+          type: string
+          format: uuid
+        description: Content fetched for this turn
+
+      content_ids_cited:
+        type: array
+        items:
+          type: string
+          format: uuid
+        description: Content used in response
+
+      query_tokens:
+        type: integer
+        description: Query token count
+
+      response_tokens:
+        type: integer
+        description: Response token count
+
+      model_id:
+        type: string
+        description: Model identifier (e.g., "claude-opus-4-5")
+
+  SessionOutcome:
+    type: object
+    required: [type]
+    properties:
+      type:
+        type: string
+        enum: [conversion, abandonment, browse]
+        description: |
+          - conversion: Purchase completed
+          - abandonment: Checkout started but not completed
+          - browse: No commerce intent expressed
+
+      value_amount:
+        type: integer
+        description: |
+          Monetary value in minor currency units (cents).
+          E.g., £49.99 = 4999
+
+      currency:
+        type: string
+        pattern: "^[A-Z]{3}$"
+        description: ISO 4217 currency code
+        example: "GBP"
+
+      products:
+        type: array
+        items:
+          type: string
+          format: uuid
+        description: Product IDs in the outcome
+
+      checkout_id:
+        type: string
+        description: |
+          UCP checkout session ID. Links attribution to the commerce flow.
+          Enables end-to-end tracking: content → recommendation → checkout.
+
+      metadata:
+        type: object
+        additionalProperties: true
+        description: Additional outcome data
+
+  UserContext:
+    type: object
+    properties:
+      external_id:
+        type: string
+        description: Opaque user identifier (not PII)
+      segments:
+        type: array
+        items:
+          type: string
+        description: User segment labels
+        example: ["returning", "premium"]
+      attributes:
+        type: object
+        additionalProperties: true
+
+  TelemetrySession:
+    type: object
+    description: Complete session for bulk upload (OpenAttribution v0.3 format)
+    required: [schema_version, session_id, started_at]
+    properties:
+      schema_version:
+        type: string
+        const: "0.3"
+      session_id:
+        type: string
+        format: uuid
+      initiator_type:
+        type: string
+        enum: [user, agent]
+        default: user
+      initiator:
+        type: object
+        properties:
+          agent_id:
+            type: string
+          operator_id:
+            type: string
+      agent_id:
+        type: string
+      content_scope:
+        type: string
+      prior_session_ids:
+        type: array
+        items:
+          type: string
+          format: uuid
+      started_at:
+        type: string
+        format: date-time
+      ended_at:
+        type: string
+        format: date-time
+      user_context:
+        $ref: "#/schemas/UserContext"
+      events:
+        type: array
+        items:
+          $ref: "#/schemas/Event"
+      outcome:
+        $ref: "#/schemas/SessionOutcome"
+
+  UploadSessionResponse:
+    type: object
+    properties:
+      session_id:
+        type: string
+        format: uuid
+      event_count:
+        type: integer
+      attribution_pending:
+        type: boolean
+
+# ------------------------------------------------------------------------------
+# Rate Limits
+# ------------------------------------------------------------------------------
+
+rate_limits:
+  per_api_key:
+    requests: 1000
+    period: minute
+  per_ip:
+    requests: 10000
+    period: hour
+
+# ------------------------------------------------------------------------------
+# Integration with UCP Capabilities
+# ------------------------------------------------------------------------------
+
+integration:
+  ucp_checkout:
+    capability: dev.ucp.shopping.checkout
+    description: |
+      Link attribution to UCP checkout by including checkout_id in the session
+      outcome. This enables end-to-end tracking:
+
+      content → recommendation → checkout → attribution → settlement
+
+      When a UCP checkout completes, the platform should call end_session with
+      the checkout ID to close the attribution loop.
+
+    example: |
+      // After UCP checkout completes
+      POST /telemetry/sessions/{session_id}/outcome
+      {
+        "outcome": {
+          "type": "conversion",
+          "value_amount": 34999,
+          "currency": "USD",
+          "checkout_id": "ucp_checkout_abc123",
+          "products": ["product-uuid"]
+        }
+      }
+
+  ap2_mandates:
+    capability: dev.ucp.shopping.ap2_mandate
+    description: |
+      For autonomous purchases with AP2 cryptographic mandates, attribution
+      events should reference the mandate that authorized the transaction.
+      This provides non-repudiable proof linking content influence to payment.
+
+# ------------------------------------------------------------------------------
+# Examples
+# ------------------------------------------------------------------------------
+
+examples:
+  - name: Complete shopping conversation with purchase
+    description: |
+      User researches headphones, agent retrieves content, user purchases.
+      Demonstrates full attribution lifecycle.
+
+    steps:
+      - name: Start session
+        request:
+          method: POST
+          path: /telemetry/sessions
+          body:
+            agent_id: "shopping-assistant-v2"
+            initiator_type: "user"
+            content_scope: "electronics-reviews"
+        response:
+          status: 201
+          body:
+            session_id: "550e8400-e29b-41d4-a716-446655440000"
+            started_at: "2026-02-11T10:30:00Z"
+
+      - name: Record content retrieval
+        request:
+          method: POST
+          path: /telemetry/sessions/550e8400-e29b-41d4-a716-446655440000/events
+          body:
+            events:
+              - type: turn_started
+                timestamp: "2026-02-11T10:30:00Z"
+                turn:
+                  privacy_level: intent
+                  query_intent: comparison
+                  topics: ["headphones", "noise-cancelling"]
+              - type: content_retrieved
+                timestamp: "2026-02-11T10:30:01Z"
+                content_id: "770e8400-e29b-41d4-a716-446655440010"
+              - type: content_retrieved
+                timestamp: "2026-02-11T10:30:01Z"
+                content_id: "770e8400-e29b-41d4-a716-446655440011"
+              - type: content_cited
+                timestamp: "2026-02-11T10:30:05Z"
+                content_id: "770e8400-e29b-41d4-a716-446655440010"
+                data:
+                  citation_type: paraphrase
+                  excerpt_tokens: 85
+                  position: primary
+        response:
+          status: 200
+          body:
+            recorded_count: 4
+
+      - name: End session with purchase
+        request:
+          method: POST
+          path: /telemetry/sessions/550e8400-e29b-41d4-a716-446655440000/outcome
+          body:
+            outcome:
+              type: conversion
+              value_amount: 34999
+              currency: "USD"
+              checkout_id: "ucp_checkout_xyz789"
+              products: ["880e8400-e29b-41d4-a716-446655440020"]
+        response:
+          status: 200
+          body:
+            session_id: "550e8400-e29b-41d4-a716-446655440000"
+            ended_at: "2026-02-11T10:35:00Z"
+            outcome_type: conversion
+            attribution_pending: true
+
+  - name: Agent-to-agent delegation
+    description: |
+      Orchestrator agent delegates content research to a specialized agent.
+      Shows how agent-to-agent attribution chains work.
+
+    steps:
+      - name: Start delegated session
+        request:
+          method: POST
+          path: /telemetry/sessions
+          body:
+            agent_id: "content-retrieval-agent-v3"
+            initiator_type: "agent"
+            initiator:
+              agent_id: "shopping-orchestrator-v1"
+              operator_id: "acme-corp"
+            content_scope: "electronics-reviews"
+            prior_session_ids:
+              - "550e8400-e29b-41d4-a716-446655440000"
+        response:
+          status: 201
+          body:
+            session_id: "550e8400-e29b-41d4-a716-446655440100"
+
+# ------------------------------------------------------------------------------
+# Versioning
+# ------------------------------------------------------------------------------
+
+versioning:
+  current: "2026-02-11"
+  backwards_compatible:
+    - "2026-02-11"
+  deprecation_policy: |
+    Breaking changes require 6 months notice. New versions published with
+    clear migration guides. Deprecated versions supported for minimum 12 months.
+
+# ------------------------------------------------------------------------------
+# Security
+# ------------------------------------------------------------------------------
+
+security:
+  https_required: true
+  api_key_rotation: supported
+  rate_limiting: enforced
+  pii_handling: |
+    - external_id must be opaque (hashed, not raw PII)
+    - Query/response text controlled by privacy_level
+    - Default to "minimal" privacy level when in doubt
+    - Retention policies documented by implementers
