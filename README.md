@@ -57,11 +57,11 @@ async def main():
         )
 
         # Record content retrieval
-        content_id = uuid4()
+        content_url = "https://www.wirecutter.com/reviews/best-wireless-headphones"
         await client.record_event(
             session_id=session_id,
             event_type="content_retrieved",
-            content_id=content_id,
+            content_url=content_url,
         )
 
         # Record a conversation turn with privacy controls
@@ -73,7 +73,7 @@ async def main():
                 query_intent="product_research",
                 response_type="recommendation",
                 topics=["headphones", "wireless"],
-                content_ids_cited=[content_id],
+                content_urls_cited=[content_url],
                 response_tokens=150,
             )
         )
@@ -117,7 +117,7 @@ session = TelemetrySession(
             id=uuid4(),
             type="content_retrieved",
             timestamp=datetime.now(UTC),
-            content_id=uuid4(),
+            content_url="https://www.rtings.com/headphones/reviews/best-noise-cancelling",
         ),
     ],
     outcome=SessionOutcome(type="conversion", value_amount=9999),
@@ -182,7 +182,7 @@ Session
 
 Control what conversation data is shared based on trust relationships:
 
-| Level | Query/Response Text | Intent | Topics | Tokens | Content IDs |
+| Level | Query/Response Text | Intent | Topics | Tokens | Content URLs |
 |-------|---------------------|--------|--------|--------|-------------|
 | `full` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `summary` | Summarized | ✓ | ✓ | ✓ | ✓ |
@@ -208,7 +208,7 @@ Wrap the SDK client in an MCP tool so the agent records attribution as part of i
 ```python
 @server.tool()
 async def record_attribution(
-    content_ids: list[str],
+    content_urls: list[str],
     query_intent: str,
     response_type: str,
 ) -> str:
@@ -220,7 +220,7 @@ async def record_attribution(
             privacy_level="intent",
             query_intent=query_intent,
             response_type=response_type,
-            content_ids_cited=[UUID(cid) for cid in content_ids],
+            content_urls_cited=content_urls,
         )
     )
     return "Attribution recorded"

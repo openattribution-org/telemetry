@@ -1,5 +1,5 @@
 """
-OpenAttribution Telemetry Schema v0.3
+OpenAttribution Telemetry Schema v0.4
 
 This module defines the core data types for the OpenAttribution standard.
 OpenAttribution is an open specification for tracking content attribution
@@ -66,7 +66,7 @@ Privacy levels for conversation data sharing.
 - full: Complete query and response text included
 - summary: LLM-generated summary of the conversation
 - intent: Only classified intent/topic, no raw text
-- minimal: Only metadata (token counts, content IDs)
+- minimal: Only metadata (token counts, content URLs)
 
 The appropriate level depends on the trust agreement between
 the signal emitter and consumer.
@@ -161,8 +161,8 @@ class ConversationTurn(BaseModel):
         response_text: Agent's response (full/summary levels only).
         query_intent: Classified intent category (intent level and above).
         response_type: Classification of response type.
-        content_ids_retrieved: Content fetched to answer the query.
-        content_ids_cited: Content actually used/cited in response.
+        content_urls_retrieved: Content fetched to answer the query.
+        content_urls_cited: Content actually used/cited in response.
         query_tokens: Token count of the query.
         response_tokens: Token count of the response.
         model_id: Identifier of the model used (e.g., "claude-3-opus").
@@ -180,8 +180,8 @@ class ConversationTurn(BaseModel):
     topics: list[str] = Field(default_factory=list)  # Detected topics/entities
 
     # Minimal level fields (always safe to include)
-    content_ids_retrieved: list[UUID] = Field(default_factory=list)
-    content_ids_cited: list[UUID] = Field(default_factory=list)
+    content_urls_retrieved: list[str] = Field(default_factory=list)
+    content_urls_cited: list[str] = Field(default_factory=list)
     query_tokens: int | None = None
     response_tokens: int | None = None
     model_id: str | None = None
@@ -199,7 +199,7 @@ class TelemetryEvent(BaseModel):
         id: Unique identifier for this event.
         type: The event type (see EventType).
         timestamp: When the event occurred (UTC).
-        content_id: Associated content document, if applicable.
+        content_url: Associated content URL, if applicable.
         product_id: Associated product, if applicable.
         turn: Conversation turn data for turn_started/turn_completed events.
         data: Additional event-specific metadata.
@@ -209,7 +209,7 @@ class TelemetryEvent(BaseModel):
         ...     id=uuid4(),
         ...     type="content_cited",
         ...     timestamp=datetime.now(UTC),
-        ...     content_id=article_uuid,
+        ...     content_url="https://example.com/article",
         ...     data={"citation_type": "direct_quote"}
         ... )
     """
@@ -217,7 +217,7 @@ class TelemetryEvent(BaseModel):
     id: UUID
     type: EventType
     timestamp: datetime
-    content_id: UUID | None = None
+    content_url: str | None = None
     product_id: UUID | None = None
     turn: ConversationTurn | None = None  # For turn_started/turn_completed events
     data: dict = Field(default_factory=dict)
@@ -290,7 +290,7 @@ class TelemetrySession(BaseModel):
         ... )
     """
 
-    schema_version: str = "0.3"
+    schema_version: str = "0.4"
     session_id: UUID
 
     # Actor types

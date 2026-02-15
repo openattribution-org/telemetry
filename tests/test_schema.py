@@ -31,7 +31,7 @@ class TestSerialization:
                     id=uuid4(),
                     type="content_retrieved",
                     timestamp=datetime.now(UTC),
-                    content_id=uuid4(),
+                    content_url="https://example.com/article-1",
                 ),
             ],
             outcome=SessionOutcome(type="browse"),
@@ -48,15 +48,18 @@ class TestSerialization:
         assert restored.outcome.type == "browse"
 
     def test_conversation_turn_json_roundtrip(self):
-        """GIVEN a turn with intent, topics, and content IDs
+        """GIVEN a turn with intent, topics, and content URLs
         WHEN serialised to JSON and restored
         SHOULD preserve all fields."""
         turn = ConversationTurn(
             privacy_level="intent",
             query_intent="comparison",
             topics=["headphones", "wireless"],
-            content_ids_retrieved=[uuid4(), uuid4()],
-            content_ids_cited=[uuid4()],
+            content_urls_retrieved=[
+                "https://example.com/article-1",
+                "https://example.com/article-2",
+            ],
+            content_urls_cited=["https://example.com/article-1"],
             response_tokens=150,
         )
 
@@ -66,7 +69,7 @@ class TestSerialization:
         assert restored.privacy_level == "intent"
         assert restored.query_intent == "comparison"
         assert len(restored.topics) == 2
-        assert len(restored.content_ids_retrieved) == 2
+        assert len(restored.content_urls_retrieved) == 2
 
     def test_event_with_turn_json_roundtrip(self):
         """GIVEN a turn_completed event with nested ConversationTurn
@@ -97,7 +100,7 @@ class TestCompleteSessionLifecycle:
         """GIVEN a session with content, turn, commerce events and an outcome
         WHEN constructed
         SHOULD hold the complete event graph."""
-        content_id = uuid4()
+        content_url = "https://example.com/review"
         product_id = uuid4()
         prior_session = uuid4()
 
@@ -114,13 +117,13 @@ class TestCompleteSessionLifecycle:
                     id=uuid4(),
                     type="content_retrieved",
                     timestamp=datetime.now(UTC),
-                    content_id=content_id,
+                    content_url=content_url,
                 ),
                 TelemetryEvent(
                     id=uuid4(),
                     type="content_cited",
                     timestamp=datetime.now(UTC),
-                    content_id=content_id,
+                    content_url=content_url,
                     data={
                         "citation_type": "paraphrase",
                         "excerpt_tokens": 85,
@@ -134,7 +137,7 @@ class TestCompleteSessionLifecycle:
                     turn=ConversationTurn(
                         privacy_level="intent",
                         query_intent="product_research",
-                        content_ids_cited=[content_id],
+                        content_urls_cited=[content_url],
                     ),
                 ),
                 TelemetryEvent(

@@ -59,19 +59,17 @@ The extension adds an `attribution` object to checkout sessions:
     "prior_session_ids": ["550e8400-e29b-41d4-a716-446655440999"],
     "content_retrieved": [
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440010",
-        "timestamp": "2026-01-15T10:30:01Z",
-        "source_id": "wirecutter.com"
+        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+        "timestamp": "2026-01-15T10:30:01Z"
       },
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440011",
-        "timestamp": "2026-01-15T10:30:01Z",
-        "source_id": "rtings.com"
+        "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling",
+        "timestamp": "2026-01-15T10:30:01Z"
       }
     ],
     "content_cited": [
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440010",
+        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
         "timestamp": "2026-01-15T10:30:05Z",
         "citation_type": "paraphrase",
         "excerpt_tokens": 85,
@@ -121,9 +119,8 @@ Content fetched during the session. Captures correlation (content was available)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `content_id` | string | Yes | Unique content identifier |
+| `content_url` | string (URI) | Yes | URL of the content retrieved |
 | `timestamp` | datetime | Yes | When retrieved (UTC) |
-| `source_id` | string | No | Publisher/source identifier |
 
 ### `attribution.content_cited`
 
@@ -131,7 +128,7 @@ Content explicitly referenced in agent responses. Includes quality signals for m
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `content_id` | string | Yes | Unique content identifier |
+| `content_url` | string (URI) | Yes | URL of the content cited |
 | `timestamp` | datetime | Yes | When cited (UTC) |
 | `citation_type` | enum | No | How content was used |
 | `excerpt_tokens` | integer | No | Token count of excerpt |
@@ -190,7 +187,7 @@ For implementations that need more granular control, the full OpenAttribution sp
 
 ## Relationship to OpenAttribution Telemetry Spec
 
-This extension is a UCP binding of [OpenAttribution Telemetry v0.3](https://openattribution.org/telemetry). The standalone spec supports:
+This extension is a UCP binding of [OpenAttribution Telemetry v0.4](https://openattribution.org/telemetry). The standalone spec supports:
 
 - Non-UCP contexts (direct API, MCP tools)
 - Full conversation turn data with privacy levels
@@ -233,24 +230,21 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
     "prior_session_ids": ["440e8400-e29b-41d4-a716-446655440999"],
     "content_retrieved": [
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440010",
-        "timestamp": "2026-01-15T10:30:01Z",
-        "source_id": "wirecutter.com"
+        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+        "timestamp": "2026-01-15T10:30:01Z"
       },
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440011",
-        "timestamp": "2026-01-15T10:30:01Z",
-        "source_id": "rtings.com"
+        "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling",
+        "timestamp": "2026-01-15T10:30:01Z"
       },
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440012",
-        "timestamp": "2026-01-15T10:31:00Z",
-        "source_id": "soundguys.com"
+        "content_url": "https://www.soundguys.com/best-noise-cancelling-headphones-2024",
+        "timestamp": "2026-01-15T10:31:00Z"
       }
     ],
     "content_cited": [
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440010",
+        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
         "timestamp": "2026-01-15T10:30:05Z",
         "citation_type": "paraphrase",
         "excerpt_tokens": 85,
@@ -258,7 +252,7 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
         "content_hash": "sha256:a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890"
       },
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440011",
+        "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling",
         "timestamp": "2026-01-15T10:30:05Z",
         "citation_type": "reference",
         "position": "supporting"
@@ -303,5 +297,5 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
 ### 2026-02-11 (Draft)
 
 - Initial extension specification
-- Based on OpenAttribution Telemetry v0.3
+- Based on OpenAttribution Telemetry v0.4
 - Extends `dev.ucp.shopping.checkout`

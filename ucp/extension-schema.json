@@ -58,31 +58,29 @@
     "ContentRetrieved": {
       "type": "object",
       "description": "Content fetched during the session",
-      "required": ["content_id", "timestamp"],
+      "required": ["content_url", "timestamp"],
       "properties": {
-        "content_id": {
+        "content_url": {
           "type": "string",
-          "description": "Unique content identifier (UUID or implementer-defined ID)"
+          "format": "uri",
+          "description": "URL of the content retrieved"
         },
         "timestamp": {
           "type": "string",
           "format": "date-time",
           "description": "When the content was retrieved (UTC)"
-        },
-        "source_id": {
-          "type": "string",
-          "description": "Content source/publisher identifier"
         }
       }
     },
     "ContentCited": {
       "type": "object",
       "description": "Content cited in an agent response with quality signals",
-      "required": ["content_id", "timestamp"],
+      "required": ["content_url", "timestamp"],
       "properties": {
-        "content_id": {
+        "content_url": {
           "type": "string",
-          "description": "Unique content identifier"
+          "format": "uri",
+          "description": "URL of the content cited"
         },
         "timestamp": {
           "type": "string",

@@ -13,7 +13,7 @@ from openattribution.telemetry.ucp import session_to_attribution
 
 def _event(
     event_type: str,
-    content_id=None,
+    content_url=None,
     product_id=None,
     turn=None,
     data=None,
@@ -24,7 +24,7 @@ def _event(
         id=uuid4(),
         type=event_type,
         timestamp=timestamp or datetime.now(UTC),
-        content_id=content_id,
+        content_url=content_url,
         product_id=product_id,
         turn=turn,
         data=data or {},
@@ -47,8 +47,8 @@ class TestFullSession:
 
     def test_full_session_produces_complete_attribution(self):
         """A session with retrieval, citation, and turns produces all fields."""
-        content_id_1 = uuid4()
-        content_id_2 = uuid4()
+        content_url_1 = "https://wirecutter.com/reviews/headphones"
+        content_url_2 = "https://rtings.com/headphones/reviews"
         prior_id = uuid4()
 
         session = _session(
@@ -56,15 +56,15 @@ class TestFullSession:
             events=[
                 _event(
                     "content_retrieved",
-                    content_id=content_id_1,
-                    data={"source_id": "wirecutter.com"},
+                    content_url=content_url_1,
                 ),
                 _event(
-                    "content_retrieved", content_id=content_id_2, data={"source_id": "rtings.com"}
+                    "content_retrieved",
+                    content_url=content_url_2,
                 ),
                 _event(
                     "content_cited",
-                    content_id=content_id_1,
+                    content_url=content_url_1,
                     data={
                         "citation_type": "paraphrase",
                         "excerpt_tokens": 85,
@@ -130,47 +130,25 @@ class TestEmptySession:
 class TestContentRetrieved:
     """Tests for content_retrieved extraction."""
 
-    def test_extracts_content_id_and_timestamp(self):
-        """Content retrieved events map to content_id + timestamp."""
-        content_id = uuid4()
+    def test_extracts_content_url_and_timestamp(self):
+        """Content retrieved events map to content_url + timestamp."""
+        content_url = "https://wirecutter.com/reviews/headphones"
         ts = datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC)
         session = _session(
-            events=[_event("content_retrieved", content_id=content_id, timestamp=ts)]
+            events=[_event("content_retrieved", content_url=content_url, timestamp=ts)]
         )
         result = session_to_attribution(session)
 
         assert len(result["content_retrieved"]) == 1
         entry = result["content_retrieved"][0]
-        assert entry["content_id"] == str(content_id)
+        assert entry["content_url"] == content_url
         assert "2026-01-15" in entry["timestamp"]
 
-    def test_source_id_included_when_present(self):
-        """source_id from event data is included."""
+    def test_skips_events_without_content_url(self):
+        """content_retrieved events with no content_url are skipped."""
         session = _session(
             events=[
-                _event("content_retrieved", content_id=uuid4(), data={"source_id": "example.com"}),
-            ]
-        )
-        result = session_to_attribution(session)
-
-        assert result["content_retrieved"][0]["source_id"] == "example.com"
-
-    def test_source_id_omitted_when_absent(self):
-        """source_id is not included when not in event data."""
-        session = _session(
-            events=[
-                _event("content_retrieved", content_id=uuid4()),
-            ]
-        )
-        result = session_to_attribution(session)
-
-        assert "source_id" not in result["content_retrieved"][0]
-
-    def test_skips_events_without_content_id(self):
-        """content_retrieved events with no content_id are skipped."""
-        session = _session(
-            events=[
-                _event("content_retrieved"),  # no content_id
+                _event("content_retrieved"),  # no content_url
             ]
         )
         result = session_to_attribution(session)
@@ -183,12 +161,12 @@ class TestContentCited:
 
     def test_citation_with_all_quality_signals(self):
         """All citation quality signals are extracted from event data."""
-        content_id = uuid4()
+        content_url = "https://wirecutter.com/reviews/headphones"
         session = _session(
             events=[
                 _event(
                     "content_cited",
-                    content_id=content_id,
+                    content_url=content_url,
                     data={
                         "citation_type": "direct_quote",
                         "excerpt_tokens": 120,
@@ -212,7 +190,7 @@ class TestContentCited:
             events=[
                 _event(
                     "content_cited",
-                    content_id=uuid4(),
+                    content_url="https://example.com/article",
                     data={"citation_type": "reference"},
                 ),
             ]
@@ -231,7 +209,7 @@ class TestContentCited:
             events=[
                 _event(
                     "content_cited",
-                    content_id=uuid4(),
+                    content_url="https://example.com/article",
                     data={"citation_type": "contradiction"},
                 ),
             ]
@@ -244,7 +222,7 @@ class TestContentCited:
         """Session with retrieval but no citations omits content_cited."""
         session = _session(
             events=[
-                _event("content_retrieved", content_id=uuid4()),
+                _event("content_retrieved", content_url="https://example.com/article"),
             ]
         )
         result = session_to_attribution(session)
@@ -345,7 +323,7 @@ class TestConversationSummary:
         """Session with no turn events omits conversation_summary entirely."""
         session = _session(
             events=[
-                _event("content_retrieved", content_id=uuid4()),
+                _event("content_retrieved", content_url="https://example.com/article"),
             ]
         )
         result = session_to_attribution(session)

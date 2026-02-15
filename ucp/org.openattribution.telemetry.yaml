@@ -229,7 +229,7 @@ mcp_tools:
           $ref: "#/schemas/SessionOutcome"
 
 # ------------------------------------------------------------------------------
-# Schemas (aligned with OpenAttribution Specification v0.3)
+# Schemas (aligned with OpenAttribution Specification v0.4)
 # ------------------------------------------------------------------------------
 
 schemas:
@@ -361,17 +361,17 @@ schemas:
           - checkout_started
           - checkout_completed
           - checkout_abandoned
-        description: Event type per OpenAttribution Specification v0.3
+        description: Event type per OpenAttribution Specification v0.4
 
       timestamp:
         type: string
         format: date-time
         description: Event timestamp (UTC)
 
-      content_id:
+      content_url:
         type: string
-        format: uuid
-        description: Associated content document ID
+        format: uri
+        description: Associated content URL
 
       product_id:
         type: string
@@ -456,19 +456,19 @@ schemas:
           type: string
         description: Detected topics/entities
 
-      content_ids_retrieved:
+      content_urls_retrieved:
         type: array
         items:
           type: string
-          format: uuid
-        description: Content fetched for this turn
+          format: uri
+        description: Content URLs fetched for this turn
 
-      content_ids_cited:
+      content_urls_cited:
         type: array
         items:
           type: string
-          format: uuid
-        description: Content used in response
+          format: uri
+        description: Content URLs used in response
 
       query_tokens:
         type: integer
@@ -542,12 +542,12 @@ schemas:
 
   TelemetrySession:
     type: object
-    description: Complete session for bulk upload (OpenAttribution v0.3 format)
+    description: Complete session for bulk upload (OpenAttribution v0.4 format)
     required: [schema_version, session_id, started_at]
     properties:
       schema_version:
         type: string
-        const: "0.3"
+        const: "0.4"
       session_id:
         type: string
         format: uuid
@@ -684,13 +684,13 @@ examples:
                   topics: ["headphones", "noise-cancelling"]
               - type: content_retrieved
                 timestamp: "2026-02-11T10:30:01Z"
-                content_id: "770e8400-e29b-41d4-a716-446655440010"
+                content_url: "https://www.wirecutter.com/reviews/best-wireless-headphones"
               - type: content_retrieved
                 timestamp: "2026-02-11T10:30:01Z"
-                content_id: "770e8400-e29b-41d4-a716-446655440011"
+                content_url: "https://www.rtings.com/headphones/reviews/best/by-usage/commute-office"
               - type: content_cited
                 timestamp: "2026-02-11T10:30:05Z"
-                content_id: "770e8400-e29b-41d4-a716-446655440010"
+                content_url: "https://www.wirecutter.com/reviews/best-wireless-headphones"
                 data:
                   citation_type: paraphrase
                   excerpt_tokens: 85

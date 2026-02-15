@@ -62,14 +62,13 @@ Adds an `attribution` object to UCP checkout sessions:
     "prior_session_ids": ["550e8400-e29b-41d4-a716-446655440999"],
     "content_retrieved": [
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440010",
-        "timestamp": "2026-01-15T10:30:01Z",
-        "source_id": "wirecutter.com"
+        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+        "timestamp": "2026-01-15T10:30:01Z"
       }
     ],
     "content_cited": [
       {
-        "content_id": "770e8400-e29b-41d4-a716-446655440010",
+        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
         "timestamp": "2026-01-15T10:30:05Z",
         "citation_type": "paraphrase",
         "excerpt_tokens": 85,
@@ -131,7 +130,7 @@ Control data sharing granularity:
 * *Mitigation:* Open-source reference implementation (Apache 2.0), Python SDK, and reference server lower the barrier.
 
 **Schema evolution risk:** Breaking changes could fragment implementations.
-* *Mitigation:* Schema version field (`0.3`) and date-based capability versions (`2026-02-11`). Deprecation policy requires 6 months notice.
+* *Mitigation:* Schema version field (`0.4`) and date-based capability versions (`2026-02-11`). Deprecation policy requires 6 months notice.
 
 ## Test Plan
 
@@ -175,6 +174,6 @@ Control data sharing granularity:
 ## References
 
 * [openattribution-org/telemetry](https://github.com/openattribution-org/telemetry) (repository)
-* [SPECIFICATION.md](https://github.com/openattribution-org/telemetry/blob/main/SPECIFICATION.md) (OpenAttribution Telemetry v0.3)
+* [SPECIFICATION.md](https://github.com/openattribution-org/telemetry/blob/main/SPECIFICATION.md) (OpenAttribution Telemetry v0.4)
 * [schema.json](https://github.com/openattribution-org/telemetry/blob/main/schema.json) (JSON Schema)
 * [ucp/EXTENSION.md](https://github.com/openattribution-org/telemetry/blob/main/ucp/EXTENSION.md) (UCP checkout extension spec)

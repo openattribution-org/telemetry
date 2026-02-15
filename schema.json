@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openattribution.org/schema/v0.3/telemetry-session.json",
+  "$id": "https://openattribution.org/schema/v0.4/telemetry-session.json",
   "title": "OpenAttribution Telemetry Session",
   "description": "Schema for OpenAttribution telemetry sessions - tracking content attribution in AI agent interactions",
   "type": "object",
@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": {
       "type": "string",
-      "const": "0.3",
+      "const": "0.4",
       "description": "OpenAttribution schema version"
     },
     "session_id": {
@@ -125,10 +125,10 @@
           "format": "date-time",
           "description": "Event timestamp (UTC)"
         },
-        "content_id": {
+        "content_url": {
           "type": ["string", "null"],
-          "format": "uuid",
-          "description": "Associated content document UUID"
+          "format": "uri",
+          "description": "Associated content URL"
         },
         "product_id": {
           "type": ["string", "null"],
@@ -194,15 +194,15 @@
           "items": { "type": "string" },
           "description": "Detected topics/entities"
         },
-        "content_ids_retrieved": {
+        "content_urls_retrieved": {
           "type": "array",
-          "items": { "type": "string", "format": "uuid" },
-          "description": "Content fetched to answer the query"
+          "items": { "type": "string", "format": "uri" },
+          "description": "Content URLs fetched to answer the query"
         },
-        "content_ids_cited": {
+        "content_urls_cited": {
           "type": "array",
-          "items": { "type": "string", "format": "uuid" },
-          "description": "Content used/cited in response"
+          "items": { "type": "string", "format": "uri" },
+          "description": "Content URLs used/cited in response"
         },
         "query_tokens": {
           "type": ["integer", "null"],

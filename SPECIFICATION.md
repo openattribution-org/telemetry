@@ -1,6 +1,6 @@
 # OpenAttribution Specification
 
-**Version:** 0.3
+**Version:** 0.4
 **Status:** Preview
 **Last Updated:** 2026-01
 
@@ -102,7 +102,7 @@ Conversation turns overlay this lifecycle:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `schema_version` | string | Yes | Schema version (e.g., "0.3") |
+| `schema_version` | string | Yes | Schema version (e.g., "0.4") |
 | `session_id` | UUID | Yes | Unique session identifier |
 | `initiator_type` | string | No | Who started the session: `"user"` (default) or `"agent"` (see 2.2) |
 | `initiator` | Initiator | No | Initiator identity when `initiator_type` is `"agent"` (see 3.1.4) |
@@ -181,7 +181,7 @@ This separation allows attribution consumers to understand which agent requested
 | `id` | UUID | Yes | Unique event identifier |
 | `type` | EventType | Yes | Event type (see 3.3) |
 | `timestamp` | datetime | Yes | Event timestamp (UTC) |
-| `content_id` | UUID | No | Associated content document |
+| `content_url` | string | No | Associated content URL |
 | `product_id` | UUID | No | Associated product |
 | `turn` | ConversationTurn | No | Conversation data (for turn events) |
 | `data` | object | No | Additional event metadata |
@@ -192,10 +192,10 @@ This separation allows attribution consumers to understand which agent requested
 
 | Type | Description | Expected Fields |
 |------|-------------|-----------------|
-| `content_retrieved` | Content fetched from source | `content_id` |
-| `content_displayed` | Content shown to user | `content_id` |
-| `content_engaged` | User interacted with content | `content_id`, `data.engagement_type` |
-| `content_cited` | Content referenced in response | `content_id`, `data.*` (see below) |
+| `content_retrieved` | Content fetched from source | `content_url` |
+| `content_displayed` | Content shown to user | `content_url` |
+| `content_engaged` | User interacted with content | `content_url`, `data.engagement_type` |
+| `content_cited` | Content referenced in response | `content_url`, `data.*` (see below) |
 
 ##### Citation Quality Signals
 
@@ -222,7 +222,7 @@ The `contradiction` type supports negative attribution: content that was retriev
 ```json
 {
   "type": "content_cited",
-  "content_id": "770e8400-e29b-41d4-a716-446655440010",
+  "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
   "data": {
     "citation_type": "paraphrase",
     "excerpt_tokens": 85,
@@ -263,15 +263,15 @@ The `ConversationTurn` object captures query/response data with privacy controls
 | `query_intent` | IntentCategory | No | Classified intent (intent+) |
 | `response_type` | string | No | Response classification |
 | `topics` | string[] | No | Detected topics/entities |
-| `content_ids_retrieved` | UUID[] | No | Content fetched |
-| `content_ids_cited` | UUID[] | No | Content used in response |
+| `content_urls_retrieved` | URI[] | No | Content fetched |
+| `content_urls_cited` | URI[] | No | Content used in response |
 | `query_tokens` | integer | No | Query token count |
 | `response_tokens` | integer | No | Response token count |
 | `model_id` | string | No | Model identifier |
 
 ### 3.5 Privacy Levels
 
-| Level | Query/Response Text | Intent | Topics | Token Counts | Content IDs |
+| Level | Query/Response Text | Intent | Topics | Token Counts | Content URLs |
 |-------|---------------------|--------|--------|--------------|-------------|
 | `full` | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `summary` | ✓ (summarized) | ✓ | ✓ | ✓ | ✓ |
@@ -438,7 +438,7 @@ See `schema.json` in the repository for the formal JSON Schema definition.
 
 ```json
 {
-  "schema_version": "0.3",
+  "schema_version": "0.4",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "initiator_type": "user",
   "agent_id": "shopping-assistant-v2",
@@ -468,19 +468,19 @@ See `schema.json` in the repository for the formal JSON Schema definition.
       "id": "660e8400-e29b-41d4-a716-446655440002",
       "type": "content_retrieved",
       "timestamp": "2026-01-15T10:30:01Z",
-      "content_id": "770e8400-e29b-41d4-a716-446655440010"
+      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones"
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440003",
       "type": "content_retrieved",
       "timestamp": "2026-01-15T10:30:01Z",
-      "content_id": "770e8400-e29b-41d4-a716-446655440011"
+      "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440004",
       "type": "content_cited",
       "timestamp": "2026-01-15T10:30:05Z",
-      "content_id": "770e8400-e29b-41d4-a716-446655440010",
+      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
       "data": {
         "citation_type": "paraphrase",
         "excerpt_tokens": 85,
@@ -496,12 +496,12 @@ See `schema.json` in the repository for the formal JSON Schema definition.
         "query_intent": "comparison",
         "response_type": "recommendation",
         "topics": ["headphones", "Sony WH-1000XM5", "Bose QC45"],
-        "content_ids_retrieved": [
-          "770e8400-e29b-41d4-a716-446655440010",
-          "770e8400-e29b-41d4-a716-446655440011"
+        "content_urls_retrieved": [
+          "https://www.wirecutter.com/reviews/best-wireless-headphones",
+          "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
         ],
-        "content_ids_cited": [
-          "770e8400-e29b-41d4-a716-446655440010"
+        "content_urls_cited": [
+          "https://www.wirecutter.com/reviews/best-wireless-headphones"
         ],
         "response_tokens": 150,
         "model_id": "claude-3-opus"
@@ -541,7 +541,7 @@ An orchestrator agent delegates a product research subtask to a content retrieva
 
 ```json
 {
-  "schema_version": "0.3",
+  "schema_version": "0.4",
   "session_id": "550e8400-e29b-41d4-a716-446655440100",
   "initiator_type": "agent",
   "initiator": {
@@ -571,19 +571,19 @@ An orchestrator agent delegates a product research subtask to a content retrieva
       "id": "660e8400-e29b-41d4-a716-446655440102",
       "type": "content_retrieved",
       "timestamp": "2026-01-15T10:30:02Z",
-      "content_id": "770e8400-e29b-41d4-a716-446655440010"
+      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones"
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440103",
       "type": "content_retrieved",
       "timestamp": "2026-01-15T10:30:02Z",
-      "content_id": "770e8400-e29b-41d4-a716-446655440011"
+      "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
     },
     {
       "id": "660e8400-e29b-41d4-a716-446655440104",
       "type": "content_cited",
       "timestamp": "2026-01-15T10:30:03Z",
-      "content_id": "770e8400-e29b-41d4-a716-446655440010",
+      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
       "data": {
         "citation_type": "paraphrase",
         "excerpt_tokens": 120,
@@ -599,12 +599,12 @@ An orchestrator agent delegates a product research subtask to a content retrieva
         "query_intent": "product_research",
         "response_type": "content_summary",
         "topics": ["headphones", "Sony WH-1000XM5", "Bose QC45"],
-        "content_ids_retrieved": [
-          "770e8400-e29b-41d4-a716-446655440010",
-          "770e8400-e29b-41d4-a716-446655440011"
+        "content_urls_retrieved": [
+          "https://www.wirecutter.com/reviews/best-wireless-headphones",
+          "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
         ],
-        "content_ids_cited": [
-          "770e8400-e29b-41d4-a716-446655440010"
+        "content_urls_cited": [
+          "https://www.wirecutter.com/reviews/best-wireless-headphones"
         ],
         "response_tokens": 200,
         "model_id": "claude-3-haiku"
@@ -618,6 +618,14 @@ An orchestrator agent delegates a product research subtask to a content retrieva
 ```
 
 ## Appendix C: Changelog
+
+### v0.4 (2026-02)
+
+Content URLs replace content UUIDs.
+
+- **Breaking:** Renamed `content_id` (UUID) to `content_url` (URI string) on `TelemetryEvent`
+- **Breaking:** Renamed `content_ids_retrieved` / `content_ids_cited` to `content_urls_retrieved` / `content_urls_cited` on `ConversationTurn`
+- Rationale: AI agents identify content by URL, not by registry UUID. URLs also enable affiliate attribution bootstrapping — any network can resolve a URL to a publisher without pre-wired mappings.
 
 ### v0.3 (2026-01)
 

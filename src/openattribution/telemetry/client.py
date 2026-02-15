@@ -38,7 +38,7 @@ class Client:
             await client.record_event(
                 session_id=session_id,
                 event_type="content_retrieved",
-                content_id=content_id
+                content_url="https://example.com/review"
             )
 
             await client.record_event(
@@ -47,7 +47,7 @@ class Client:
                 turn=ConversationTurn(
                     privacy_level="intent",
                     query_intent="comparison",
-                    content_ids_cited=[content_id],
+                    content_urls_cited=["https://example.com/review"],
                 )
             )
 
@@ -197,7 +197,7 @@ class Client:
         self,
         session_id: UUID | None,
         event_type: EventType,
-        content_id: UUID | None = None,
+        content_url: str | None = None,
         product_id: UUID | None = None,
         turn: ConversationTurn | None = None,
         data: dict | None = None,
@@ -207,7 +207,7 @@ class Client:
         Args:
             session_id: Session UUID from start_session.
             event_type: Type of event (see EventType).
-            content_id: Optional associated content UUID.
+            content_url: Optional associated content URL.
             product_id: Optional associated product UUID.
             turn: Optional conversation turn data (for turn_started/turn_completed).
             data: Optional additional event metadata.
@@ -219,7 +219,7 @@ class Client:
             id=uuid4(),
             type=event_type,
             timestamp=datetime.now(UTC),
-            content_id=content_id,
+            content_url=content_url,
             product_id=product_id,
             turn=turn,
             data=data or {},

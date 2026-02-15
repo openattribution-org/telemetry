@@ -48,15 +48,12 @@ def _extract_content_retrieved(session: TelemetrySession) -> list[dict]:
     """Extract content_retrieved entries from session events."""
     results = []
     for event in session.events:
-        if event.type != "content_retrieved" or event.content_id is None:
+        if event.type != "content_retrieved" or event.content_url is None:
             continue
         entry: dict = {
-            "content_id": str(event.content_id),
+            "content_url": event.content_url,
             "timestamp": event.timestamp.isoformat(),
         }
-        source_id = event.data.get("source_id")
-        if source_id is not None:
-            entry["source_id"] = source_id
         results.append(entry)
     return results
 
@@ -65,10 +62,10 @@ def _extract_content_cited(session: TelemetrySession) -> list[dict]:
     """Extract content_cited entries with quality signals from session events."""
     results = []
     for event in session.events:
-        if event.type != "content_cited" or event.content_id is None:
+        if event.type != "content_cited" or event.content_url is None:
             continue
         entry: dict = {
-            "content_id": str(event.content_id),
+            "content_url": event.content_url,
             "timestamp": event.timestamp.isoformat(),
         }
         for field in _CITATION_DATA_FIELDS:

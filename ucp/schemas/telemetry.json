@@ -124,13 +124,13 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "content_ids_retrieved": {
+        "content_urls_retrieved": {
           "type": "array",
-          "items": { "$ref": "#/$defs/uuid" }
+          "items": { "type": "string", "format": "uri" }
         },
-        "content_ids_cited": {
+        "content_urls_cited": {
           "type": "array",
-          "items": { "$ref": "#/$defs/uuid" }
+          "items": { "type": "string", "format": "uri" }
         },
         "query_tokens": {
           "type": "integer",
@@ -154,7 +154,10 @@
           "type": "string",
           "format": "date-time"
         },
-        "content_id": { "$ref": "#/$defs/uuid" },
+        "content_url": {
+          "type": "string",
+          "format": "uri"
+        },
         "product_id": { "$ref": "#/$defs/uuid" },
         "turn": { "$ref": "#/$defs/conversation_turn" },
         "data": {
@@ -223,7 +226,7 @@
       "properties": {
         "schema_version": {
           "type": "string",
-          "const": "0.3"
+          "const": "0.4"
         },
         "session_id": { "$ref": "#/$defs/uuid" },
         "initiator_type": { "$ref": "#/$defs/initiator_type" },
