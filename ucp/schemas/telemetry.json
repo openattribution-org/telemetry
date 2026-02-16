@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openattribution.org/ucp/schemas/telemetry.json",
+  "$id": "https://openattribution.org/telemetry/ucp/schemas/telemetry.json",
   "title": "OpenAttribution Telemetry",
   "description": "Track content influence in AI shopping conversations. Standalone capability for full session lifecycle management.",
 
@@ -171,7 +171,8 @@
             "position": { "$ref": "#/$defs/position_type" },
             "content_hash": {
               "type": "string",
-              "description": "SHA256 of cited content"
+              "pattern": "^sha256:[a-f0-9]{64}$",
+              "description": "SHA256 of cited content for verification (format: 'sha256:abc123...')"
             },
             "engagement_type": { "type": "string" },
             "order_value_amount": {

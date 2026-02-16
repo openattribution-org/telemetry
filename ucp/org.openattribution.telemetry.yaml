@@ -3,16 +3,16 @@
 # Tracks which content influenced AI shopping conversation outcomes.
 # Enables fair creator compensation and cross-platform attribution.
 #
-# Specification: https://openattribution.org/ucp/telemetry
-# Schema: https://openattribution.org/ucp/schemas/telemetry.json
+# Specification: https://openattribution.org/telemetry/ucp/extension
+# Schema: https://openattribution.org/telemetry/ucp/schemas/telemetry.json
 # Reference Implementation: https://github.com/openattribution-org/telemetry
 
 capability:
   name: org.openattribution.telemetry
   version: "2026-02-11"
   status: draft
-  spec: https://openattribution.org/ucp/telemetry
-  schema: https://openattribution.org/ucp/schemas/telemetry.json
+  spec: https://openattribution.org/telemetry/ucp/extension
+  schema: https://openattribution.org/telemetry/ucp/schemas/telemetry.json
 
 namespace:
   authority: openattribution.org
@@ -40,12 +40,10 @@ description: |
 services:
   rest:
     version: "2026-02-11"
-    schema: https://openattribution.org/ucp/openapi/telemetry.json
     # Endpoint provided by business profile
 
   mcp:
     version: "2026-02-11"
-    schema: https://openattribution.org/ucp/openrpc/telemetry.json
     # Endpoint provided by business profile
 
 # ------------------------------------------------------------------------------
@@ -57,7 +55,7 @@ authentication:
     header: X-API-Key
     description: |
       API key scoped to a content mix. Same key used for content search.
-      Format: nai_mix_{random} or provider-specific format.
+      Format: provider-specific.
 
   - type: bearer
     header: Authorization
@@ -70,6 +68,10 @@ authentication:
 # ------------------------------------------------------------------------------
 
 operations:
+  # Note: These endpoint paths are specific to the UCP standalone capability
+  # binding. The core OpenAttribution spec recommends different paths
+  # (/session/start, /events, /session/end) for non-UCP implementations.
+
   # Start a new attribution session
   start_session:
     method: POST
@@ -602,9 +604,12 @@ schemas:
 # ------------------------------------------------------------------------------
 
 rate_limits:
+  # 1000/min supports ~10 concurrent conversations × 5 events/min with 20× headroom.
+  # Sufficient for real-time event streaming without enabling abuse.
   per_api_key:
     requests: 1000
     period: minute
+  # IP-level limit provides a secondary ceiling for shared infrastructure.
   per_ip:
     requests: 10000
     period: hour
@@ -626,7 +631,6 @@ integration:
       the checkout ID to close the attribution loop.
 
     example: |
-      // After UCP checkout completes
       POST /telemetry/sessions/{session_id}/outcome
       {
         "outcome": {
@@ -640,10 +644,16 @@ integration:
 
   ap2_mandates:
     capability: dev.ucp.shopping.ap2_mandate
+    status: exploratory
     description: |
       For autonomous purchases with AP2 cryptographic mandates, attribution
-      events should reference the mandate that authorized the transaction.
-      This provides non-repudiable proof linking content influence to payment.
+      events could reference the mandate that authorised the transaction.
+      This would provide non-repudiable proof linking content influence to
+      payment.
+
+      Note: This integration depends on AP2 reaching candidate status within
+      UCP. Until then, this binding is exploratory and not part of the
+      extension's conformance requirements.
 
 # ------------------------------------------------------------------------------
 # Examples

@@ -110,7 +110,7 @@
     "TelemetryEvent": {
       "type": "object",
       "description": "Single telemetry event within a session",
-      "required": ["id", "type", "timestamp"],
+      "required": ["type", "timestamp"],
       "properties": {
         "id": {
           "type": "string",

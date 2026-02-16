@@ -34,8 +34,8 @@ Merchants and agents declare support in their UCP profile:
       {
         "name": "org.openattribution.telemetry",
         "version": "2026-02-11",
-        "spec": "https://openattribution.org/ucp/telemetry",
-        "schema": "https://openattribution.org/ucp/schemas/extension.json",
+        "spec": "https://openattribution.org/telemetry/ucp/extension",
+        "schema": "https://openattribution.org/telemetry/ucp/schemas/extension.json",
         "extends": "dev.ucp.shopping.checkout"
       }
     ]
@@ -55,33 +55,33 @@ The extension adds an `attribution` object to checkout sessions:
   "totals": [...],
 
   "attribution": {
-    "content_scope": "electronics-reviews-mix",
+    "content_scope": "running-reviews",
     "prior_session_ids": ["550e8400-e29b-41d4-a716-446655440999"],
     "content_retrieved": [
       {
-        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
-        "timestamp": "2026-01-15T10:30:01Z"
+        "content_url": "https://www.runnersworld.com/gear/best-running-shoes",
+        "timestamp": "2026-01-20T14:10:01Z"
       },
       {
-        "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling",
-        "timestamp": "2026-01-15T10:30:01Z"
+        "content_url": "https://www.believeintherun.com/shoe-reviews",
+        "timestamp": "2026-01-20T14:10:02Z"
       }
     ],
     "content_cited": [
       {
-        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
-        "timestamp": "2026-01-15T10:30:05Z",
+        "content_url": "https://www.runnersworld.com/gear/best-running-shoes",
+        "timestamp": "2026-01-20T14:10:05Z",
         "citation_type": "paraphrase",
-        "excerpt_tokens": 85,
+        "excerpt_tokens": 72,
         "position": "primary"
       }
     ],
     "conversation_summary": {
-      "turn_count": 3,
+      "turn_count": 4,
       "primary_intent": "comparison",
-      "topics": ["headphones", "noise-cancelling", "Sony WH-1000XM5"],
-      "total_content_retrieved": 5,
-      "total_content_cited": 2
+      "topics": ["running-shoes", "cushioning", "stability"],
+      "total_content_retrieved": 4,
+      "total_content_cited": 1
     }
   }
 }
@@ -98,6 +98,12 @@ Opaque identifier for the content collection used. Meaning is implementer-define
 | Content mix platform | `"electronics-reviews-mix"` |
 | API key scoped | `"apikey_abc123"` |
 | Agreement ID | `"agreement_456"` |
+
+**Requirements:**
+
+- MUST NOT contain personally identifiable information (PII) or be derivable to PII
+- SHOULD be stable across sessions to enable cross-session aggregation
+- Consumers MUST NOT attempt to reverse-engineer the content collection from the scope value
 
 ### `attribution.prior_session_ids`
 
@@ -158,6 +164,8 @@ These are agent-reported metadata describing how content appeared in a response.
 
 Privacy-preserving aggregate of the conversation. Useful when full conversation context isn't available or shouldn't be shared.
 
+The `attribution` object does not carry an explicit `privacy_level` field. The checkout extension operates at `summary`-equivalent level by default — the absence of `primary_intent` or `topics` fields indicates a stricter privacy level was applied. Implementations MAY agree on a specific privacy level through out-of-band mechanisms.
+
 ## Negotiation
 
 When agent and merchant both declare `org.openattribution.telemetry`:
@@ -183,7 +191,26 @@ Graceful degradation: the checkout proceeds normally regardless. Attribution is 
 
 ### Privacy Levels
 
-For implementations that need more granular control, the full OpenAttribution spec defines privacy levels (`full`, `summary`, `intent`, `minimal`). This extension uses `summary`-equivalent data by default.
+For implementations that need more granular control, the full OpenAttribution spec defines privacy levels (`full`, `summary`, `intent`, `minimal`).
+
+#### Field Gating by Privacy Level
+
+The following table shows which `attribution` fields are populated at each privacy level:
+
+| Field | `full` | `summary` | `intent` | `minimal` |
+|-------|--------|-----------|----------|-----------|
+| `content_retrieved` | Yes | Yes | Yes | Yes |
+| `content_cited` | Yes | Yes | Yes | Yes |
+| `citation_type` | Yes | Yes | Yes | Yes |
+| `excerpt_tokens` | Yes | Yes | Yes | Yes |
+| `position` | Yes | Yes | Yes | Yes |
+| `content_hash` | Yes | Yes | Yes | Yes |
+| `conversation_summary.turn_count` | Yes | Yes | Yes | Yes |
+| `conversation_summary.total_content_*` | Yes | Yes | Yes | Yes |
+| `conversation_summary.primary_intent` | Yes | Yes | Yes | No |
+| `conversation_summary.topics` | Yes | Yes | Yes | No |
+
+The checkout extension operates at `summary`-equivalent level by default. Implementations MAY negotiate a different privacy level through out-of-band agreements.
 
 ## Relationship to OpenAttribution Telemetry Spec
 
@@ -206,62 +233,62 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
       { "name": "org.openattribution.telemetry", "version": "2026-02-11" }
     ]
   },
-  "id": "chk_headphones_purchase",
+  "id": "chk_skincare_purchase",
   "status": "completed",
   "line_items": [
     {
       "id": "li_1",
       "item": {
-        "id": "sony_wh1000xm5",
-        "title": "Sony WH-1000XM5 Wireless Headphones",
-        "price": 34999
+        "id": "cerave_moisturising_cream_340g",
+        "title": "CeraVe Moisturising Cream 340g",
+        "price": 1499
       },
       "quantity": 1
     }
   ],
   "totals": [
-    { "type": "subtotal", "amount": 34999 },
-    { "type": "total", "amount": 34999 }
+    { "type": "subtotal", "amount": 1499 },
+    { "type": "total", "amount": 1499 }
   ],
-  "currency": "USD",
+  "currency": "GBP",
 
   "attribution": {
-    "content_scope": "electronics-reviews",
+    "content_scope": "skincare-reviews",
     "prior_session_ids": ["440e8400-e29b-41d4-a716-446655440999"],
     "content_retrieved": [
       {
-        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
-        "timestamp": "2026-01-15T10:30:01Z"
+        "content_url": "https://www.carolinehirons.com/2025/12/cerave-moisturising-cream-review",
+        "timestamp": "2026-01-18T09:15:01Z"
       },
       {
-        "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling",
-        "timestamp": "2026-01-15T10:30:01Z"
+        "content_url": "https://theskincareedit.com/cerave-moisturising-cream-review",
+        "timestamp": "2026-01-18T09:15:02Z"
       },
       {
-        "content_url": "https://www.soundguys.com/best-noise-cancelling-headphones-2024",
-        "timestamp": "2026-01-15T10:31:00Z"
+        "content_url": "https://www.beautybible.com/best-ceramide-moisturisers",
+        "timestamp": "2026-01-18T09:16:00Z"
       }
     ],
     "content_cited": [
       {
-        "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
-        "timestamp": "2026-01-15T10:30:05Z",
+        "content_url": "https://www.carolinehirons.com/2025/12/cerave-moisturising-cream-review",
+        "timestamp": "2026-01-18T09:15:05Z",
         "citation_type": "paraphrase",
-        "excerpt_tokens": 85,
+        "excerpt_tokens": 92,
         "position": "primary",
-        "content_hash": "sha256:a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890"
+        "content_hash": "sha256:b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890ab"
       },
       {
-        "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling",
-        "timestamp": "2026-01-15T10:30:05Z",
+        "content_url": "https://theskincareedit.com/cerave-moisturising-cream-review",
+        "timestamp": "2026-01-18T09:15:06Z",
         "citation_type": "reference",
         "position": "supporting"
       }
     ],
     "conversation_summary": {
-      "turn_count": 4,
+      "turn_count": 3,
       "primary_intent": "comparison",
-      "topics": ["headphones", "noise-cancelling", "Sony", "Bose", "battery life"],
+      "topics": ["moisturiser", "dry-skin", "ceramides"],
       "total_content_retrieved": 3,
       "total_content_cited": 2
     }

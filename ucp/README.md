@@ -43,7 +43,7 @@ POST /telemetry/sessions/{id}/outcome # End with outcome
 
 **Files:** `org.openattribution.telemetry.yaml`, `schemas/telemetry.json`
 
-Both approaches share the same underlying schema (OpenAttribution Telemetry v0.3) and are interoperable. Merchants and agents can support either or both.
+Both approaches share the same underlying schema (OpenAttribution Telemetry v0.4) and are interoperable. Merchants and agents can support either or both.
 
 ## Files
 
@@ -71,8 +71,8 @@ Both approaches share the same underlying schema (OpenAttribution Telemetry v0.3
       {
         "name": "org.openattribution.telemetry",
         "version": "2026-02-11",
-        "spec": "https://openattribution.org/ucp/telemetry",
-        "schema": "https://openattribution.org/ucp/schemas/extension.json",
+        "spec": "https://openattribution.org/telemetry/ucp/extension",
+        "schema": "https://openattribution.org/telemetry/ucp/schemas/extension.json",
         "extends": "dev.ucp.shopping.checkout"
       }
     ]
@@ -93,8 +93,8 @@ Both approaches share the same underlying schema (OpenAttribution Telemetry v0.3
       {
         "name": "org.openattribution.telemetry",
         "version": "2026-02-11",
-        "spec": "https://openattribution.org/ucp/telemetry",
-        "schema": "https://openattribution.org/ucp/schemas/telemetry.json"
+        "spec": "https://openattribution.org/telemetry/ucp/extension",
+        "schema": "https://openattribution.org/telemetry/ucp/schemas/telemetry.json"
       }
     ]
   }
