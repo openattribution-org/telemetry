@@ -15,7 +15,7 @@ This repo contains:
 - **Schema** (Pydantic models) for sessions, events, outcomes, and privacy levels
 - **Python SDK client** for emitting signals over HTTP
 - **Reference server** (FastAPI + PostgreSQL) for receiving and storing them
-- **UCP integration** specs for commerce interoperability
+- **Commerce protocol integrations** for [UCP](https://ucp.dev) and [ACP](https://www.agenticcommerce.dev/)
 
 See [SPECIFICATION.md](./SPECIFICATION.md) for the full protocol spec and [schema.json](./schema.json) for cross-language implementations.
 
@@ -261,6 +261,21 @@ attribution = session_to_attribution(telemetry_session)
 ```
 
 See [`ucp/README.md`](./ucp/README.md) for specifications and integration examples.
+
+## ACP Integration
+
+OpenAttribution integrates with the [Agentic Commerce Protocol](https://www.agenticcommerce.dev/) via a content attribution extension that complements ACP's existing `affiliate_attribution`.
+
+The SDK includes a bridge to convert telemetry sessions into ACP content attribution objects:
+
+```python
+from openattribution.telemetry import session_to_content_attribution
+
+content_attribution = session_to_content_attribution(telemetry_session)
+# Include in ACP checkout request
+```
+
+See [`acp/README.md`](./acp/README.md) for the RFC, schema, and examples.
 
 ## Get Involved
 

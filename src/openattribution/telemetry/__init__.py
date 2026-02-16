@@ -15,6 +15,7 @@ Example:
     ...     )
 """
 
+from openattribution.telemetry.acp import session_to_content_attribution
 from openattribution.telemetry.client import Client
 from openattribution.telemetry.schema import (
     ConversationTurn,
@@ -36,6 +37,8 @@ __all__ = [
     "Client",
     # UCP bridge
     "session_to_attribution",
+    # ACP bridge
+    "session_to_content_attribution",
     # Type aliases
     "EventType",
     "InitiatorType",

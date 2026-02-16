@@ -1,4 +1,4 @@
-"""Bridge from OpenAttribution telemetry sessions to UCP checkout attribution."""
+"""Bridge from OpenAttribution telemetry sessions to ACP content attribution."""
 
 from openattribution.telemetry._transforms import (
     _build_conversation_summary,
@@ -8,18 +8,18 @@ from openattribution.telemetry._transforms import (
 from openattribution.telemetry.schema import TelemetrySession
 
 
-def session_to_attribution(session: TelemetrySession) -> dict:
-    """Convert a TelemetrySession into a UCP checkout ``attribution`` object.
+def session_to_content_attribution(session: TelemetrySession) -> dict:
+    """Convert a TelemetrySession into an ACP ``content_attribution`` object.
 
     The returned dict matches the schema defined in
-    ``ucp/extension-schema.json`` and can be embedded directly in a
-    UCP checkout session payload.
+    ``acp/schemas/content_attribution.json`` and can be included directly
+    in an ACP checkout session payload.
 
     Args:
         session: A complete or in-progress telemetry session.
 
     Returns:
-        A dict containing the ``attribution`` object fields.
+        A dict containing the ``content_attribution`` object fields.
     """
     retrieved = _extract_content_retrieved(session)
     cited = _extract_content_cited(session)
