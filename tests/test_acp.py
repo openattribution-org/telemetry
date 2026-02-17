@@ -31,13 +31,12 @@ def _event(
     )
 
 
-def _session(events=None, content_scope="test-scope", prior_session_ids=None):
+def _session(events=None, content_scope="test-scope"):
     """Helper to create a TelemetrySession with sensible defaults."""
     return TelemetrySession(
         session_id=uuid4(),
         content_scope=content_scope,
         started_at=datetime.now(UTC),
-        prior_session_ids=prior_session_ids or [],
         events=events or [],
     )
 
@@ -49,10 +48,8 @@ class TestFullSession:
         """A session with retrieval, citation, and turns produces all fields."""
         url_1 = "https://www.jameshoffmann.co.uk/reviews/breville-barista-express"
         url_2 = "https://www.home-barista.com/espresso-machines/review.html"
-        prior_id = uuid4()
 
         session = _session(
-            prior_session_ids=[prior_id],
             events=[
                 _event("content_retrieved", content_url=url_1),
                 _event("content_retrieved", content_url=url_2),
@@ -80,16 +77,12 @@ class TestFullSession:
         result = session_to_content_attribution(session)
 
         assert result["content_scope"] == "test-scope"
-        assert result["prior_session_ids"] == [str(prior_id)]
         assert len(result["content_retrieved"]) == 2
         assert len(result["content_cited"]) == 1
         assert result["content_cited"][0]["citation_type"] == "paraphrase"
         assert result["content_cited"][0]["excerpt_tokens"] == 95
         assert result["conversation_summary"]["turn_count"] == 1
-        assert result["conversation_summary"]["primary_intent"] == "comparison"
         assert result["conversation_summary"]["topics"] == ["espresso-machine", "grinder"]
-        assert result["conversation_summary"]["total_content_retrieved"] == 2
-        assert result["conversation_summary"]["total_content_cited"] == 1
 
 
 class TestEmptySession:
@@ -172,7 +165,6 @@ class TestConversationSummary:
         summary = result["conversation_summary"]
         assert summary["turn_count"] == 2
         assert summary["topics"] == ["espresso-machine", "grinder", "price"]
-        assert summary["total_content_retrieved"] == 1
 
 
 class TestNonTelemetryEventsIgnored:

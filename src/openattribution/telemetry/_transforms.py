@@ -1,7 +1,5 @@
 """Shared transform helpers for converting telemetry sessions to attribution dicts."""
 
-from collections import Counter
-
 from openattribution.telemetry.schema import TelemetrySession
 
 _CITATION_DATA_FIELDS = ("citation_type", "excerpt_tokens", "position", "content_hash")
@@ -39,13 +37,12 @@ def _extract_content_cited(session: TelemetrySession) -> list[dict]:
     return results
 
 
-def _build_conversation_summary(
-    session: TelemetrySession,
-    total_retrieved: int,
-    total_cited: int,
-) -> dict:
-    """Build a privacy-preserving conversation summary from turn events."""
-    intents: list[str] = []
+def _build_conversation_summary(session: TelemetrySession) -> dict:
+    """Build a lightweight conversation summary from turn events.
+
+    Returns only ``turn_count`` and ``topics`` — fields that are not
+    derivable from the citation arrays.
+    """
     topics_seen: dict[str, None] = {}  # ordered set
     turn_count = 0
 
@@ -54,8 +51,6 @@ def _build_conversation_summary(
             continue
         turn_count += 1
         if event.turn is not None:
-            if event.turn.query_intent is not None:
-                intents.append(event.turn.query_intent)
             for topic in event.turn.topics:
                 topics_seen[topic] = None
 
@@ -64,18 +59,8 @@ def _build_conversation_summary(
     if turn_count > 0:
         summary["turn_count"] = turn_count
 
-    if intents:
-        counter = Counter(intents)
-        summary["primary_intent"] = counter.most_common(1)[0][0]
-
     topics = list(topics_seen)
     if topics:
         summary["topics"] = topics
-
-    if total_retrieved > 0:
-        summary["total_content_retrieved"] = total_retrieved
-
-    if total_cited > 0:
-        summary["total_content_cited"] = total_cited
 
     return summary
