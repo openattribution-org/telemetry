@@ -401,7 +401,7 @@ schemas:
             enum: [primary, supporting, mentioned]
           content_hash:
             type: string
-            description: SHA256 of cited content (verification)
+            description: SHA-256 hash of the content the agent processed, for integrity audit trail in dispute resolution
           # Commerce event data
           order_value_amount:
             type: integer

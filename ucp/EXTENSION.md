@@ -1,7 +1,7 @@
 # OpenAttribution Telemetry Extension for UCP
 
 **Extension Name:** `org.openattribution.telemetry`
-**Version:** `2026-02-11`
+**Version:** `2026-02-17`
 **Extends:** `dev.ucp.shopping.checkout`
 **Status:** Draft
 
@@ -33,7 +33,7 @@ Merchants and agents declare support in their UCP profile:
       },
       {
         "name": "org.openattribution.telemetry",
-        "version": "2026-02-11",
+        "version": "2026-02-17",
         "spec": "https://openattribution.org/telemetry/ucp/extension",
         "schema": "https://openattribution.org/telemetry/ucp/schemas/extension.json",
         "extends": "dev.ucp.shopping.checkout"
@@ -51,12 +51,11 @@ The extension adds an `attribution` object to checkout sessions:
 {
   "id": "chk_123456789",
   "status": "ready_for_complete",
-  "line_items": [...],
-  "totals": [...],
+  "line_items": ["..."],
+  "totals": ["..."],
 
   "attribution": {
     "content_scope": "running-reviews",
-    "prior_session_ids": ["550e8400-e29b-41d4-a716-446655440999"],
     "content_retrieved": [
       {
         "content_url": "https://www.runnersworld.com/gear/best-running-shoes",
@@ -78,10 +77,7 @@ The extension adds an `attribution` object to checkout sessions:
     ],
     "conversation_summary": {
       "turn_count": 4,
-      "primary_intent": "comparison",
-      "topics": ["running-shoes", "cushioning", "stability"],
-      "total_content_retrieved": 4,
-      "total_content_cited": 1
+      "topics": ["running-shoes", "cushioning", "stability"]
     }
   }
 }
@@ -105,28 +101,16 @@ Opaque identifier for the content collection used. Meaning is implementer-define
 - SHOULD be stable across sessions to enable cross-session aggregation
 - Consumers MUST NOT attempt to reverse-engineer the content collection from the scope value
 
-### `attribution.prior_session_ids`
-
-Links this checkout to previous sessions in the user journey. Enables attribution across multi-day purchase paths:
-
-```
-Day 1: Research session (Session A) — user browses headphone reviews
-Day 3: Comparison session (Session B) — user narrows to 2 options
-Day 7: Purchase session (Session C) — user completes checkout
-
-Session C.prior_session_ids = ["session_a_id", "session_b_id"]
-```
-
-Attribution algorithms can distribute credit across the full journey rather than just the converting session.
-
 ### `attribution.content_retrieved`
 
-Content fetched during the session. Captures correlation (content was available) without claiming causation (content was used).
+Content fetched during the session. Captures correlation (content was available) without claiming causation (content was used). Required — if you're sending `attribution`, you must have retrieved something.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `content_url` | string (URI) | Yes | URL of the content retrieved |
 | `timestamp` | datetime | Yes | When retrieved (UTC) |
+
+For multi-conversation attribution (user researches Monday, buys Friday), agents accumulate all relevant content from prior conversations into the final checkout's `content_retrieved` array. Timestamps on entries provide the temporal signal.
 
 ### `attribution.content_cited`
 
@@ -139,7 +123,7 @@ Content explicitly referenced in agent responses. Includes quality signals for m
 | `citation_type` | enum | No | How content was used |
 | `excerpt_tokens` | integer | No | Token count of excerpt |
 | `position` | enum | No | Prominence in response |
-| `content_hash` | string | No | SHA256 for verification |
+| `content_hash` | string | No | SHA-256 integrity audit trail |
 
 #### Citation Types
 
@@ -160,11 +144,20 @@ These are agent-reported metadata describing how content appeared in a response.
 | `supporting` | Additional evidence |
 | `mentioned` | Referenced but not relied upon |
 
+#### Content Hash
+
+SHA-256 hash of the content the agent processed from the cited URL, for integrity audit trail in dispute resolution. The spec does not prescribe the extraction method — agents hash whatever content they fed into their context. Agents SHOULD use a consistent hashing method across citations within a session.
+
 ### `attribution.conversation_summary`
 
-Privacy-preserving aggregate of the conversation. Useful when full conversation context isn't available or shouldn't be shared.
+Lightweight conversation context. All fields are agent-reported hints.
 
-The `attribution` object does not carry an explicit `privacy_level` field. The checkout extension operates at `summary`-equivalent level by default — the absence of `primary_intent` or `topics` fields indicates a stricter privacy level was applied. Implementations MAY agree on a specific privacy level through out-of-band mechanisms.
+| Field | Type | Description |
+|-------|------|-------------|
+| `turn_count` | integer | Number of conversation turns before checkout (minimum 1) |
+| `topics` | array of strings | De-duplicated free-form topic tags from the conversation |
+
+`turn_count` provides a signal of conversation depth that is not derivable from the citation arrays. `topics` provides lightweight category tags that help merchants route attribution internally without needing to crawl the cited URLs.
 
 ## Negotiation
 
@@ -193,28 +186,11 @@ Graceful degradation: the checkout proceeds normally regardless. Attribution is 
 
 For implementations that need more granular control, the full OpenAttribution spec defines privacy levels (`full`, `summary`, `intent`, `minimal`).
 
-#### Field Gating by Privacy Level
-
-The following table shows which `attribution` fields are populated at each privacy level:
-
-| Field | `full` | `summary` | `intent` | `minimal` |
-|-------|--------|-----------|----------|-----------|
-| `content_retrieved` | Yes | Yes | Yes | Yes |
-| `content_cited` | Yes | Yes | Yes | Yes |
-| `citation_type` | Yes | Yes | Yes | Yes |
-| `excerpt_tokens` | Yes | Yes | Yes | Yes |
-| `position` | Yes | Yes | Yes | Yes |
-| `content_hash` | Yes | Yes | Yes | Yes |
-| `conversation_summary.turn_count` | Yes | Yes | Yes | Yes |
-| `conversation_summary.total_content_*` | Yes | Yes | Yes | Yes |
-| `conversation_summary.primary_intent` | Yes | Yes | Yes | No |
-| `conversation_summary.topics` | Yes | Yes | Yes | No |
-
-The checkout extension operates at `summary`-equivalent level by default. Implementations MAY negotiate a different privacy level through out-of-band agreements.
+The checkout extension operates at `summary`-equivalent level by default — `conversation_summary` contains only `turn_count` and `topics`, both of which are safe to share at all privacy levels. Implementations MAY negotiate a different privacy level through out-of-band agreements.
 
 ## Relationship to OpenAttribution Telemetry Spec
 
-This extension is a UCP binding of [OpenAttribution Telemetry v0.4](https://openattribution.org/telemetry). The standalone spec supports:
+This extension is a UCP binding of [OpenAttribution Telemetry v0.4](https://openattribution.org/telemetry). The canonical specification is protocol-independent and maintained by the OpenAttribution Project. The standalone spec supports:
 
 - Non-UCP contexts (direct API, MCP tools)
 - Full conversation turn data with privacy levels
@@ -230,7 +206,7 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
     "version": "2026-01-11",
     "capabilities": [
       { "name": "dev.ucp.shopping.checkout", "version": "2026-01-11" },
-      { "name": "org.openattribution.telemetry", "version": "2026-02-11" }
+      { "name": "org.openattribution.telemetry", "version": "2026-02-17" }
     ]
   },
   "id": "chk_skincare_purchase",
@@ -254,7 +230,6 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
 
   "attribution": {
     "content_scope": "skincare-reviews",
-    "prior_session_ids": ["440e8400-e29b-41d4-a716-446655440999"],
     "content_retrieved": [
       {
         "content_url": "https://www.carolinehirons.com/2025/12/cerave-moisturising-cream-review",
@@ -287,10 +262,7 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
     ],
     "conversation_summary": {
       "turn_count": 3,
-      "primary_intent": "comparison",
-      "topics": ["moisturiser", "dry-skin", "ceramides"],
-      "total_content_retrieved": 3,
-      "total_content_cited": 2
+      "topics": ["moisturiser", "dry-skin", "ceramides"]
     }
   }
 }
@@ -303,7 +275,7 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
 1. Check merchant profile for `org.openattribution.telemetry` support
 2. If supported, populate `attribution` during checkout session
 3. Track content retrieval and citation during conversation
-4. Include `prior_session_ids` if user has prior sessions in their journey
+4. For multi-conversation journeys, accumulate all relevant content into the final checkout's `content_retrieved` array
 
 ### For Merchants
 
@@ -316,10 +288,18 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
 
 1. Consume `attribution` data from completed checkouts
 2. Use `content_cited` with quality signals for weighted attribution
-3. Use `prior_session_ids` for journey-based attribution
+3. Use `content_retrieved` timestamps for temporal attribution across multi-day journeys
 4. Aggregate by `content_scope` for mix-level analytics
 
 ## Changelog
+
+### 2026-02-17
+
+- Removed `prior_session_ids` from checkout extension (privacy concern; agents accumulate content into `content_retrieved` instead)
+- Stripped `conversation_summary` to `turn_count` + `topics` only (removed `primary_intent`, `total_content_retrieved`, `total_content_cited`)
+- Added `content_retrieved` to required fields with `minItems: 1`
+- Reframed `content_hash` as integrity audit trail; relaxed regex to mixed-case hex
+- Added `$comment` provenance linking to canonical OpenAttribution spec
 
 ### 2026-02-11 (Draft)
 
