@@ -46,10 +46,7 @@
     ],
     "conversation_summary": {
       "turn_count": 4,
-      "primary_intent": "comparison",
-      "topics": ["espresso-machine", "grinder", "home-barista"],
-      "total_content_retrieved": 2,
-      "total_content_cited": 2
+      "topics": ["espresso-machine", "grinder", "home-barista"]
     }
   }
 }
