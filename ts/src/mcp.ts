@@ -146,10 +146,119 @@ export class MCPSessionTracker {
   }
 
   /**
-   * End a session with an outcome.
+   * Emit `content_engaged` events when a user interacts with content.
    *
-   * Call this when the conversation concludes — at checkout, after
-   * the user clicks a link, or when the session times out.
+   * Call this when a user clicks a link, views an embedded product, or
+   * otherwise actively engages with retrieved content. This is the
+   * strongest attribution signal before a purchase event.
+   *
+   * @param externalSessionId - Caller-supplied conversation identifier.
+   * @param urls - URLs the user engaged with.
+   * @param options - Optional engagement metadata.
+   *
+   * @example
+   * ```ts
+   * // In a redirect/tracking endpoint
+   * await tracker.trackEngaged(sessionId, [productUrl], {
+   *   interactionType: "click",
+   * });
+   * ```
+   */
+  async trackEngaged(
+    externalSessionId: string | undefined,
+    urls: string[],
+    options: {
+      interactionType?: "click" | "view" | "expand" | "share";
+    } = {},
+  ): Promise<void> {
+    if (urls.length === 0) return;
+    const sessionId = await this.getOrCreateSession(externalSessionId);
+    if (sessionId == null) return;
+
+    const now = new Date().toISOString();
+    const events: TelemetryEvent[] = urls.map((url) => ({
+      id: crypto.randomUUID(),
+      type: "content_engaged" as const,
+      timestamp: now,
+      contentUrl: url,
+      data: {
+        ...(options.interactionType != null && {
+          interaction_type: options.interactionType,
+        }),
+      },
+    }));
+
+    await this.client.recordEvents(sessionId, events);
+  }
+
+  /**
+   * Record a checkout outcome and end the session.
+   *
+   * Call this when a user completes a purchase, abandons checkout, or
+   * the conversation concludes with a clear commerce outcome.
+   * Emits a `checkout_completed` or `checkout_abandoned` event then
+   * ends the session with the appropriate outcome type.
+   *
+   * @param externalSessionId - Caller-supplied conversation identifier.
+   * @param outcome - Purchase details.
+   *
+   * @example
+   * ```ts
+   * // User completed a purchase
+   * await tracker.trackCheckout(sessionId, {
+   *   type: "completed",
+   *   valueAmount: 4999, // $49.99 in minor units (cents)
+   *   currency: "USD",
+   * });
+   *
+   * // User abandoned checkout
+   * await tracker.trackCheckout(sessionId, { type: "abandoned" });
+   * ```
+   */
+  async trackCheckout(
+    externalSessionId: string | undefined,
+    outcome: {
+      type: "completed" | "abandoned" | "started";
+      valueAmount?: number;
+      currency?: string;
+      products?: string[];
+    },
+  ): Promise<void> {
+    const sessionId = externalSessionId != null
+      ? (this.registry.get(externalSessionId) ?? null)
+      : null;
+
+    if (sessionId == null) return;
+
+    // Emit the checkout event
+    const eventType = outcome.type === "completed"
+      ? "checkout_completed" as const
+      : outcome.type === "abandoned"
+      ? "checkout_abandoned" as const
+      : "checkout_started" as const;
+
+    await this.client.recordEvent(sessionId, eventType);
+
+    // End the session with an outcome for completed/abandoned
+    if (outcome.type === "completed" || outcome.type === "abandoned") {
+      const outcomeType = outcome.type === "completed" ? "conversion" as const : "abandonment" as const;
+      await this.client.endSession(sessionId, {
+        type: outcomeType,
+        ...(outcome.valueAmount != null && { valueAmount: outcome.valueAmount }),
+        ...(outcome.currency != null && { currency: outcome.currency }),
+        ...(outcome.products != null && { products: outcome.products }),
+      });
+      if (externalSessionId != null) {
+        this.registry.delete(externalSessionId);
+      }
+    }
+  }
+
+  /**
+   * End a session with an explicit outcome.
+   *
+   * Use `trackCheckout` for commerce outcomes. Use this for non-commerce
+   * session endings (browse sessions, timeouts, explicit abandonment).
    */
   async endSession(
     externalSessionId: string | undefined,

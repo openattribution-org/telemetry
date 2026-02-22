@@ -12,8 +12,9 @@ Part of the [OpenAttribution](https://openattribution.org) project.
 OpenAttribution defines a **schema** for content attribution signals in AI agent interactions. It specifies the shape of the data, not how you move it. Your implementation chooses the transport: HTTP postback, SSE via MCP tool calls, message queues, direct database writes, whatever fits.
 
 This repo contains:
-- **Schema** (Pydantic models) for sessions, events, outcomes, and privacy levels
-- **Python SDK client** for emitting signals over HTTP
+- **Schema** (Pydantic models + TypeScript types) for sessions, events, outcomes, and privacy levels
+- **Python SDK** (`openattribution-telemetry`) for emitting signals over HTTP
+- **TypeScript/JavaScript SDK** (`@openattribution/telemetry`) for Node.js, Deno, browsers, and Edge runtimes
 - **Reference server** (FastAPI + PostgreSQL) for receiving and storing them
 - **Commerce protocol integrations** for [UCP](https://ucp.dev) and [ACP](https://www.agenticcommerce.dev/)
 
@@ -21,15 +22,21 @@ See [SPECIFICATION.md](./SPECIFICATION.md) for the full protocol spec and [schem
 
 ## Installation
 
+**Python:**
+
 ```bash
 pip install openattribution-telemetry
+# or: uv add openattribution-telemetry
 ```
 
-Or with uv:
+**TypeScript/JavaScript:**
 
 ```bash
-uv add openattribution-telemetry
+npm install @openattribution/telemetry
+# or: pnpm add @openattribution/telemetry
 ```
+
+The TypeScript SDK works in Node.js ≥18, Deno, browsers, and Edge runtimes (Vercel, Cloudflare Workers). Zero runtime dependencies. See [`ts/README.md`](./ts/README.md) for full documentation.
 
 ## Quick Start (Python SDK)
 
@@ -128,6 +135,41 @@ async with Client(endpoint="https://api.example.com/telemetry", api_key="key") a
 ```
 
 The server generates its own session ID and stores the caller's `session_id` as `external_session_id`.
+
+## Quick Start (TypeScript SDK)
+
+```ts
+import { TelemetryClient, MCPSessionTracker, createTrackingUrl } from "@openattribution/telemetry";
+
+const client = new TelemetryClient({
+  endpoint: "https://your-telemetry-server.com",
+  apiKey: process.env.TELEMETRY_API_KEY,
+  failSilently: true,
+});
+
+// MCPSessionTracker maintains session continuity across stateless MCP tool calls
+const tracker = new MCPSessionTracker(client, "my-shopping-agent");
+
+// Track the full attribution funnel
+await tracker.trackRetrieved(sessionId, productUrls);       // content shown
+await tracker.trackCited(sessionId, recommendedUrls);       // content recommended
+await tracker.trackEngaged(sessionId, [clickedUrl], {       // user clicked
+  interactionType: "click",
+});
+await tracker.trackCheckout(sessionId, {                    // purchase completed
+  type: "completed",
+  valueAmount: 4999,   // $49.99 in minor units
+  currency: "USD",
+});
+
+// Build tracked redirect URLs for reliable click attribution
+const trackedUrl = createTrackingUrl("https://shop.example.com/product", {
+  endpoint: "https://myagent.com/api/track",
+  sessionId,
+});
+```
+
+See [`ts/README.md`](./ts/README.md) for MCP integration, Next.js examples, and the ACP/UCP checkout bridges.
 
 ## Session Model
 

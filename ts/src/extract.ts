@@ -70,6 +70,53 @@ export function extractResultUrls(
   return [...new Set(urls)];
 }
 
+/**
+ * Build a tracking URL that routes through your server-side redirect endpoint.
+ *
+ * Your endpoint emits a `content_engaged` event then redirects the user to
+ * the original URL. This is the most reliable pattern for click tracking —
+ * it fires server-side before the redirect, so it works regardless of
+ * browser JS state or navigation timing.
+ *
+ * @param contentUrl - The destination URL to redirect to after tracking.
+ * @param options.endpoint - Your tracking endpoint base URL (e.g. `https://example.com/api/track`).
+ * @param options.sessionId - Optional session ID to link the click to an existing session.
+ *
+ * @example
+ * ```ts
+ * // Build a tracked URL for a product link
+ * const trackedUrl = createTrackingUrl("https://shop.example.com/product", {
+ *   endpoint: "https://myagent.com/api/track",
+ *   sessionId: "conv-abc123",
+ * });
+ * // → "https://myagent.com/api/track?url=https%3A%2F%2Fshop.example.com%2Fproduct&session_id=conv-abc123"
+ *
+ * // Server-side handler (Next.js example):
+ * export async function GET(req: Request) {
+ *   const { searchParams } = new URL(req.url);
+ *   const url = searchParams.get("url");
+ *   const sessionId = searchParams.get("session_id") ?? undefined;
+ *   if (!url) return new Response("Missing url", { status: 400 });
+ *   void tracker.trackEngaged(sessionId, [url], { interactionType: "click" });
+ *   return Response.redirect(url, 302);
+ * }
+ * ```
+ */
+export function createTrackingUrl(
+  contentUrl: string,
+  options: {
+    endpoint: string;
+    sessionId?: string;
+  },
+): string {
+  const url = new URL(options.endpoint);
+  url.searchParams.set("url", contentUrl);
+  if (options.sessionId != null) {
+    url.searchParams.set("session_id", options.sessionId);
+  }
+  return url.toString();
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------

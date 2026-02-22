@@ -166,6 +166,49 @@ await ucpClient.completeCheckout({
 });
 ```
 
+## Tracking the full funnel
+
+The four tracker methods cover the complete content attribution chain:
+
+```ts
+// 1. Content fetched — what the agent retrieved to answer the query
+await tracker.trackRetrieved(sessionId, productUrls);
+
+// 2. Content cited — what the agent explicitly recommended
+await tracker.trackCited(sessionId, citedUrls, { citationType: "reference" });
+
+// 3. Content engaged — what the user clicked or viewed
+await tracker.trackEngaged(sessionId, [clickedUrl], { interactionType: "click" });
+
+// 4. Checkout — purchase completed (ends the session)
+await tracker.trackCheckout(sessionId, { type: "completed", valueAmount: 4999, currency: "USD" });
+```
+
+### Click tracking with a redirect endpoint
+
+The most reliable way to track clicks is a server-side redirect. Use `createTrackingUrl` to build proxied links, then implement a lightweight redirect handler:
+
+```ts
+import { createTrackingUrl, MCPSessionTracker } from "@openattribution/telemetry";
+
+// Build tracked links for your products
+const trackedUrl = createTrackingUrl("https://shop.example.com/product/123", {
+  endpoint: "https://myagent.com/api/track",
+  sessionId: "conv-abc123",
+});
+// → "https://myagent.com/api/track?url=https%3A%2F%2F...&session_id=conv-abc123"
+
+// Next.js redirect handler (app/api/track/route.ts)
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const url = searchParams.get("url");
+  const sessionId = searchParams.get("session_id") ?? undefined;
+  if (!url) return new Response("Missing url", { status: 400 });
+  void tracker.trackEngaged(sessionId, [url], { interactionType: "click" });
+  return Response.redirect(url, 302);
+}
+```
+
 ## API reference
 
 ### `TelemetryClient`
@@ -184,8 +227,14 @@ await ucpClient.completeCheckout({
 |--------|-------------|
 | `trackRetrieved(externalId, urls[])` | Emit `content_retrieved` events. Creates session if needed. |
 | `trackCited(externalId, urls[], options?)` | Emit `content_cited` events. |
-| `endSession(externalId, outcome)` | End the session and remove from registry. |
+| `trackEngaged(externalId, urls[], options?)` | Emit `content_engaged` events (clicks, views). |
+| `trackCheckout(externalId, outcome)` | Emit checkout event and end session. |
+| `endSession(externalId, outcome)` | End session with explicit outcome. |
 | `getOrCreateSession(externalId)` | Get or create an OA session ID. |
+
+### `createTrackingUrl(contentUrl, options)`
+
+Build a server-side redirect URL for reliable click tracking. Pass to your product links instead of the raw destination URL. See the redirect endpoint example above.
 
 ### `extractCitationUrls(text)`
 

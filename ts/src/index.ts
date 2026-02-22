@@ -29,7 +29,7 @@
 
 export { TelemetryClient } from "./client.js";
 export { MCPSessionTracker } from "./mcp.js";
-export { extractCitationUrls, extractResultUrls } from "./extract.js";
+export { extractCitationUrls, extractResultUrls, createTrackingUrl } from "./extract.js";
 export { sessionToContentAttribution } from "./acp.js";
 export { sessionToAttribution } from "./ucp.js";
 
