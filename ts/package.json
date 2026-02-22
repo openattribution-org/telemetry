@@ -1,0 +1,59 @@
+{
+  "name": "@openattribution/telemetry",
+  "version": "0.1.0",
+  "description": "OpenAttribution Telemetry SDK for TypeScript/JavaScript — track content attribution in AI agent interactions",
+  "license": "Apache-2.0",
+  "author": "OpenAttribution Project",
+  "homepage": "https://openattribution.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openattribution-org/telemetry",
+    "directory": "ts"
+  },
+  "keywords": [
+    "openattribution",
+    "telemetry",
+    "ai-agents",
+    "mcp",
+    "content-attribution",
+    "acp",
+    "ucp"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "tsup": "^8.0.0",
+    "vitest": "^2.0.0"
+  }
+}
