@@ -23,15 +23,12 @@ def session_to_attribution(session: TelemetrySession) -> dict:
     """
     retrieved = _extract_content_retrieved(session)
     cited = _extract_content_cited(session)
-    summary = _build_conversation_summary(session, len(retrieved), len(cited))
+    summary = _build_conversation_summary(session)
 
     attribution: dict = {}
 
     if session.content_scope is not None:
         attribution["content_scope"] = session.content_scope
-
-    if session.prior_session_ids:
-        attribution["prior_session_ids"] = [str(sid) for sid in session.prior_session_ids]
 
     if retrieved:
         attribution["content_retrieved"] = retrieved
