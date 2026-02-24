@@ -34,9 +34,10 @@ import type { TelemetryClient } from "./client.js";
  * Maintains an in-process mapping of external session IDs to OA session UUIDs.
  * Sessions are created on first use and reused across subsequent tool calls.
  *
- * The in-process registry is intentionally simple — it works correctly for
- * single-process MCP servers. For distributed deployments, pass a shared
- * external store to the constructor.
+ * The in-process registry works correctly for single-process MCP servers.
+ * For multi-process or distributed deployments, session continuity must be
+ * handled upstream — for example, include the OA session ID in your tool
+ * response and pass it back as `externalSessionId` on subsequent calls.
  */
 export class MCPSessionTracker {
   private readonly client: TelemetryClient;
