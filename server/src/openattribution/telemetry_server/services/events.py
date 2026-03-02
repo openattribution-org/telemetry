@@ -23,7 +23,7 @@ async def create_events(
         row = await conn.execute(
             """
             INSERT INTO events (
-                id, session_id, event_type, content_id, product_id,
+                id, session_id, event_type, content_url, product_id,
                 turn_data, event_data, event_timestamp
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
@@ -33,7 +33,7 @@ async def create_events(
                 event.id,
                 session_id,
                 event.type,
-                event.content_id,
+                event.content_url,
                 event.product_id,
                 turn_data,
                 Jsonb(event.data),
@@ -70,7 +70,7 @@ def _row_to_event(row: tuple) -> Event:
         id=row[0],
         session_id=row[1],
         event_type=row[2],
-        content_id=row[3],
+        content_url=row[3],
         product_id=row[4],
         turn_data=row[5],
         event_data=row[6] or {},

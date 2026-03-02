@@ -105,6 +105,6 @@ def sample_event_data() -> dict:
         "id": str(uuid4()),
         "type": "content_retrieved",
         "timestamp": datetime.now(UTC).isoformat(),
-        "content_id": str(uuid4()),
+        "content_url": "https://example.com/test-article",
         "data": {},
     }

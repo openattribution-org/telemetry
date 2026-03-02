@@ -108,7 +108,7 @@ class Event(BaseModel):
     id: UUID
     session_id: UUID
     event_type: str
-    content_id: UUID | None
+    content_url: str | None
     product_id: UUID | None
     turn_data: dict | None
     event_data: dict

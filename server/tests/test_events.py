@@ -21,7 +21,7 @@ class TestEventService:
             id=uuid4(),
             type="content_retrieved",
             timestamp=datetime.now(UTC),
-            content_id=uuid4(),
+            content_url="https://example.com/article",
             data={"source": "vector_db"},
         )
 
@@ -39,19 +39,19 @@ class TestEventService:
                 id=uuid4(),
                 type="content_retrieved",
                 timestamp=datetime.now(UTC),
-                content_id=uuid4(),
+                content_url="https://example.com/article",
             ),
             TelemetryEvent(
                 id=uuid4(),
                 type="content_displayed",
                 timestamp=datetime.now(UTC),
-                content_id=uuid4(),
+                content_url="https://example.com/article",
             ),
             TelemetryEvent(
                 id=uuid4(),
                 type="content_cited",
                 timestamp=datetime.now(UTC),
-                content_id=uuid4(),
+                content_url="https://example.com/article",
                 data={
                     "citation_type": "direct_quote",
                     "excerpt_tokens": 45,
@@ -126,13 +126,13 @@ class TestEventsAPI:
                 "id": str(uuid4()),
                 "type": "content_retrieved",
                 "timestamp": datetime.now(UTC).isoformat(),
-                "content_id": str(uuid4()),
+                "content_url": "https://example.com/article",
             },
             {
                 "id": str(uuid4()),
                 "type": "content_cited",
                 "timestamp": datetime.now(UTC).isoformat(),
-                "content_id": str(uuid4()),
+                "content_url": "https://example.com/article",
                 "data": {"citation_type": "paraphrase"},
             },
         ]
@@ -200,7 +200,7 @@ class TestEventsAPI:
         session_id = start_response.json()["session_id"]
 
         # 2. Record content events
-        content_id = str(uuid4())
+        content_url = "https://www.wirecutter.com/reviews/best-wireless-headphones"
         events_response = await client.post(
             "/events",
             json={
@@ -210,13 +210,13 @@ class TestEventsAPI:
                         "id": str(uuid4()),
                         "type": "content_retrieved",
                         "timestamp": datetime.now(UTC).isoformat(),
-                        "content_id": content_id,
+                        "content_url": content_url,
                     },
                     {
                         "id": str(uuid4()),
                         "type": "content_cited",
                         "timestamp": datetime.now(UTC).isoformat(),
-                        "content_id": content_id,
+                        "content_url": content_url,
                         "data": {"citation_type": "direct_quote"},
                     },
                 ],

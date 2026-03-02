@@ -85,7 +85,6 @@ These endpoints are for downstream attribution processing:
 
 ```python
 from openattribution.telemetry import Client, SessionOutcome
-from uuid import uuid4
 
 async with Client(
     endpoint="http://localhost:8007",
@@ -101,7 +100,7 @@ async with Client(
     await client.record_event(
         session_id=session_id,
         event_type="content_retrieved",
-        content_id=uuid4()
+        content_url="https://www.wirecutter.com/reviews/best-wireless-headphones"
     )
 
     # End with outcome
@@ -134,7 +133,7 @@ The server uses two tables:
 - id (UUID, primary key)
 - session_id (UUID, foreign key)
 - event_type (TEXT) - Standard event types
-- content_id (UUID) - Referenced content
+- content_url (TEXT) - Referenced content URL
 - product_id (UUID) - Referenced product
 - turn_data (JSONB) - Conversation turn data
 - event_data (JSONB) - Additional metadata

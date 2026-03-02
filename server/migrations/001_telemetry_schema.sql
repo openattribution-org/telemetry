@@ -79,8 +79,8 @@ CREATE TABLE events (
     -- Event type (standard OpenAttribution event types)
     event_type TEXT NOT NULL,
 
-    -- Content reference
-    content_id UUID,
+    -- Content reference (URL, not UUID — spec v0.4)
+    content_url TEXT,
 
     -- Product reference (for commerce events)
     product_id UUID,
@@ -130,8 +130,8 @@ CREATE INDEX idx_sessions_ended ON sessions(ended_at) WHERE ended_at IS NOT NULL
 -- Look up events by session, ordered by time
 CREATE INDEX idx_events_session ON events(session_id, event_timestamp);
 
--- Find events by content ID (for content-level attribution)
-CREATE INDEX idx_events_content ON events(content_id) WHERE content_id IS NOT NULL;
+-- Find events by content URL (for content-level attribution)
+CREATE INDEX idx_events_content ON events(content_url) WHERE content_url IS NOT NULL;
 
 -- GIN index for "find sessions that followed session X" queries
 -- Useful for journey reconstruction

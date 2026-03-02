@@ -253,7 +253,7 @@ class TestBulkUploadAPI:
                         "id": str(uuid4()),
                         "type": "content_retrieved",
                         "timestamp": datetime.now(UTC).isoformat(),
-                        "content_id": str(uuid4()),
+                        "content_url": "https://www.wirecutter.com/reviews/best-headphones",
                         "data": {"query": "best headphones"},
                     },
                     {
