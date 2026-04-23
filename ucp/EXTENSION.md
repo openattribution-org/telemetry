@@ -190,7 +190,7 @@ The checkout extension operates at `summary`-equivalent level by default — `co
 
 ## Relationship to OpenAttribution Telemetry Spec
 
-This extension is a UCP binding of [OpenAttribution Telemetry v0.4](https://openattribution.org/telemetry). The canonical specification is protocol-independent and maintained by the OpenAttribution Project. The standalone spec supports:
+This extension is a UCP binding of [OpenAttribution Telemetry v0.1](https://openattribution.org/telemetry). The canonical specification is protocol-independent and maintained by the OpenAttribution Project. The standalone spec supports:
 
 - Non-UCP contexts (direct API, MCP tools)
 - Full conversation turn data with privacy levels
@@ -304,5 +304,5 @@ This extension takes the commerce-relevant subset and packages it for UCP's `all
 ### 2026-02-11 (Draft)
 
 - Initial extension specification
-- Based on OpenAttribution Telemetry v0.4
+- Based on OpenAttribution Telemetry v0.1
 - Extends `dev.ucp.shopping.checkout`

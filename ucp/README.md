@@ -43,7 +43,7 @@ POST /telemetry/sessions/{id}/outcome # End with outcome
 
 **Files:** `org.openattribution.telemetry.yaml`, `schemas/telemetry.json`
 
-Both approaches share the same underlying schema (OpenAttribution Telemetry v0.4) and are interoperable. Merchants and agents can support either or both.
+Both approaches share the same underlying schema (OpenAttribution Telemetry v0.1) and are interoperable. Merchants and agents can support either or both.
 
 ## Files
 

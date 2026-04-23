@@ -1,415 +1,924 @@
-# OpenAttribution Specification
+# OpenAttribution Telemetry specification
 
-**Version:** 0.4
+Content attribution - Signal format for AI agent interactions
+
+**Version:** 0.1
 **Status:** Preview
-**Last Updated:** 2026-01
+**Last updated:** 2026-04-07
 
-## Abstract
+## Contents
 
-OpenAttribution is an open signal format for content attribution in AI agent interactions. It defines a schema for telemetry data that tracks which content contributed to AI-generated responses and user outcomes. The format is transport-agnostic: implementations choose how to deliver signals (HTTP, MCP, message queues, etc.).
+1. [Scope](#1-scope)
+2. [Normative references](#2-normative-references)
+3. [Terms and definitions](#3-terms-and-definitions)
+4. [Concepts](#4-concepts) — sessions, event lifecycle, source roles, content identification
+5. [Schema](#5-schema) — session, event, event types, conversation turn, privacy, intent, conformance levels
+6. [Data profiles](#6-data-profiles) — retrieval, edge enrichment, origin enrichment, grounding, citation, display, engagement
+7. [Transport](#7-transport) — delivery formats, OA-Telemetry-ID header, routing
+8. [Privacy](#8-privacy) — data minimisation, recommended levels, retention
+9. [Attribution](#9-attribution) — counting semantics, grounding without citation
+10. [Extensibility](#10-extensibility) — custom event metadata, intent categories, response modes
+11. [Versioning](#11-versioning)
 
-## 1. Introduction
+[Annex A](#annex-a-normative-json-schema) (normative) — JSON Schema
+[Annex B](#annex-b-informative-examples) (informative) — Examples
+[Bibliography](#bibliography)
 
-### 1.1 Problem Statement
+## Introduction
 
-AI agents use licensed content to generate responses. There is no standardized way to:
+AI agents use content from across the web to generate responses. There is no standardised way to track which content was retrieved, whether it influenced the response, whether it was cited, or whether a user engaged with the citation.
 
-1. Track which content was retrieved and used in a response
-2. Attribute user outcomes (purchases, signups) to specific content
-3. Provide data that could inform compensation arrangements
+This specification defines a telemetry schema that records content usage across five stages: retrieval, grounding, citation, display, and engagement.
 
-### 1.2 Goals
+Content access protocols (peek-then-pay, IAB CoMP, bilateral API agreements) govern how agents discover and license content. This specification is the reporting counterpart: it records what happened after content was accessed. An agent cannot reliably declare how it will use content before reading it. Telemetry events are post-hoc: they report what actually happened.
 
-OpenAttribution defines:
+The `license_ref` field on events (section 5.2) connects telemetry to whatever access protocol issued the licence. The telemetry schema does not depend on any specific access protocol.
 
-- A **minimal, extensible schema** for telemetry events
-- **Privacy-preserving** data sharing levels between parties
-- Data structures for **attribution calculation** across the content lifecycle
-- A **vendor-neutral**, open source approach
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174).
 
-### 1.3 Non-Goals
+## 1. Scope
 
-OpenAttribution does not:
+This document specifies:
 
-- Define specific attribution algorithms (left to implementers)
-- Mandate specific privacy policies (left to agreements between parties)
-- Require specific transport protocols (HTTP, gRPC, etc. all valid)
+- a schema for telemetry events that track content usage in AI agent interactions
+- event types for five stages of the content lifecycle: retrieval, grounding, citation, display, engagement
+- privacy levels that control what conversation data is shared
+- conformance levels for emitters and consumers
+- transport guidance for delivering telemetry data
+- extensibility mechanisms for domain-specific metadata
 
-## 2. Concepts
+This document does not specify:
 
-### 2.1 Actors
+- attribution algorithms or scoring models
+- privacy policies or data protection requirements
+- transport protocols (HTTP, gRPC, message queues, etc. are all valid)
+- content access or licensing protocols
+- telemetry for model training (inference-time usage only)
 
-| Actor | Description |
-|-------|-------------|
-| **Content Owner** | Entity that owns/licenses content (publishers, creators) |
-| **Agent Operator** | Entity running the AI agent that uses content |
-| **Attribution Consumer** | Entity that processes telemetry for attribution (may be same as owner) |
-| **End User** | Human interacting with the AI agent |
+## 2. Normative references
 
-### 2.2 Actor Types
+The following documents are referred to in the text in such a way that some or all of their content constitutes requirements of this document.
 
-A session has two sides: an **initiator** (who starts the session) and a **responder** (who handles queries and generates responses).
+- **RFC 2119**, Key words for use in RFCs to Indicate Requirement Levels
+  https://www.rfc-editor.org/rfc/rfc2119
 
-| Side | Actor Type | Description |
-|------|------------|-------------|
-| Initiator | `user` | A human end user (default) |
-| Initiator | `agent` | An AI agent calling another agent |
-| Responder | `agent` | An AI agent responding to queries (always) |
+- **RFC 8174**, Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words
+  https://www.rfc-editor.org/rfc/rfc8174
 
-When the initiator is an agent, it carries its own identity: an agent ID, optional AIMS manifest, and operator identity. This supports attribution in agent-to-agent pipelines where one agent delegates content retrieval or reasoning to another.
+- **RFC 9562**, Universally Unique IDentifiers (UUIDs)
+  https://www.rfc-editor.org/rfc/rfc9562
 
-Agent-to-agent sessions link into broader journeys via `prior_session_ids`, allowing attribution consumers to reconstruct multi-hop chains back to the originating user session.
+- **ISO 8601**, Date and time — Representations for information interchange
 
-### 2.3 Session Model
+- **ISO 3166-1**, Codes for the representation of names of countries and their subdivisions — Part 1: Country codes
 
-A **Session** represents a bounded interaction between an initiator (user or agent) and a responding AI agent. Sessions:
+- **JSON Schema**, draft 2020-12
+  https://json-schema.org/draft/2020-12/json-schema-core
+
+## 3. Terms and definitions
+
+For the purposes of this document, the following terms and definitions apply.
+
+### 3.1
+
+**content owner**
+
+entity that owns or licences content, such as a publisher or creator
+
+### 3.2
+
+**agent operator**
+
+entity running the AI agent that uses content
+
+### 3.3
+
+**attribution consumer**
+
+entity that receives and processes telemetry data for attribution purposes
+
+### 3.4
+
+**end user**
+
+human interacting with the AI agent
+
+### 3.5
+
+**emitter**
+
+system that produces telemetry events
+
+### 3.6
+
+**session**
+
+bounded interaction between an end user (3.4) and a responding AI agent, identified by a unique session identifier
+
+### 3.7
+
+**event**
+
+record of a single occurrence at a specific point in the content lifecycle
+
+### 3.8
+
+**turn**
+
+single query-response exchange between an end user (3.4) and an AI agent within a session (3.6)
+
+### 3.9
+
+**retrieval**
+
+fetching of content over HTTP from an origin server, CDN, marketplace, or index
+
+Note 1 to entry: A retrieval is observable by both the content owner's infrastructure and the agent.
+
+### 3.10
+
+**grounding**
+
+loading of content into an AI agent's generation context, where it can directly influence the model's output
+
+Note 1 to entry: Content used only for retrieval selection (embedding similarity search, re-ranking, query routing) without entering the generation context is not grounded.
+
+### 3.11
+
+**citation**
+
+explicit reference to content in an AI agent's response, whether quoted, paraphrased, or linked
+
+### 3.12
+
+**display**
+
+presentation of a content reference to the end user
+
+### 3.13
+
+**engagement**
+
+end user interaction with displayed content, such as clicking a link, expanding a preview, copying text, or sharing
+
+### 3.14
+
+**source role**
+
+classification of the observer reporting a telemetry event: `origin`, `edge`, `index`, or `agent`
+
+### 3.15
+
+**conformance level**
+
+tier of telemetry completeness that an emitter (3.5) supports: `retrieval`, `grounding`, or `attribution`
+
+### 3.16
+
+**privacy level**
+
+degree of conversation detail shared in telemetry data: `full`, `summary`, `intent`, or `minimal`
+
+### 3.17
+
+**content scope**
+
+opaque identifier grouping sessions (3.6) by their content access context
+
+## 4. Concepts
+
+### 4.1 Sessions
+
+A session (3.6) represents a bounded interaction between a user and a responding AI agent.
+
+Sessions:
 
 - Have a unique identifier
 - Track the content collection used (`content_scope`)
-- Contain ordered **Events**
-- Conclude with an optional **Outcome**
+- Contain events (3.7) ordered chronologically by timestamp
 
 ```
 Session
 ├── started_at
 ├── events[]
-│   ├── content_retrieved
+│   ├── content_retrieved    (HTTP layer)
+│   ├── content_grounded     (influence layer)
 │   ├── turn_started
-│   ├── content_cited
+│   ├── content_cited        (response layer)
+│   ├── content_displayed    (UI layer)
 │   ├── turn_completed
+│   ├── content_engaged      (user action layer)
 │   └── ...
-├── ended_at
-└── outcome (conversion/abandonment/browse)
+└── ended_at
 ```
 
-### 2.4 Event Lifecycle
+### 4.2 Event lifecycle
 
-Content flows through these stages during an agent interaction:
+Content moves through five stages during an agent interaction:
 
-1. **Retrieved**: Content fetched from storage/index
-2. **Displayed**: Content shown to user (if applicable)
-3. **Cited**: Content used/quoted in agent response
-4. **Engaged**: User interacted with content (clicked, expanded)
+1. **Retrieved** — Content fetched over HTTP from an origin server, CDN, marketplace, or index. This is an infrastructure event observable by the content owner's infrastructure (origin server, edge network) and the agent. A retrieval may be cached by the agent for use across multiple sessions.
 
-Conversation turns overlay this lifecycle:
+2. **Grounded** — Content loaded into the agent's generation context for this session or turn. The boundary is "this content entered the generation model's context" — the point where content can directly influence the model's output.
 
-1. **Turn Started**: User submits a query
-2. **Turn Completed**: Agent finishes response
+   Content used only for retrieval selection (embedding similarity search, re-ranking scores, routing decisions) without entering the generation context is not grounded.
 
-## 3. Schema
+   Grounding is architecture-neutral: same event whether the agent uses RAG, chain-of-thought reasoning, embeddings, or multi-step delegation (see section 6.4 for architecture-specific guidance). Grounding is decoupled from retrieval: content may be grounded from a live fetch, from agent-side cache, or from a pre-loaded index. Only the agent can report grounding events.
 
-### 3.1 Session
+3. **Cited** — Content explicitly referenced in the agent's response: quoted, paraphrased, or linked. A subset of grounded content. Content can influence every response in a session without being cited once.
+
+4. **Displayed** — A content reference shown to the end user: a link, snippet, inline quote, or preview card. Not all citations result in display (e.g., when the agent uses content internally without surfacing the source).
+
+5. **Engaged** — The user interacted with displayed content: clicked a link, expanded a preview, copied text, or shared the response.
+
+```
+Retrieved (HTTP layer, cacheable)
+  → Grounded (influence layer, per-session or per-turn)
+    → Cited (response layer, per-turn)
+      → Displayed (UI layer, per-turn)
+        → Engaged (user action layer)
+```
+
+Each stage is typically a progressively narrower subset. The ratios between stages are meaningful for attribution:
+
+- **Retrieval-to-grounding** measures content fetched but not used (irrelevant, stale, or a competing source was preferred)
+- **Grounding-to-citation** measures content that influenced the response without explicit attribution
+- **Citation-to-display** measures content attributed internally but not shown to the user
+- **Display-to-engagement** measures interactions where the user did or did not visit the source
+
+#### Departures from the funnel model
+
+Two edge cases break the strict subset model:
+
+- **Displayed without cited.** An agent may display content references (e.g., a "Sources" sidebar) without citing the content in the response text. In this case, a `content_displayed` event exists with no corresponding `content_cited` event.
+- **Cited without grounded.** A hallucinated citation references content the agent never retrieved or loaded into context. The `content_cited` event has no preceding `content_grounded` event.
+
+Emitters SHOULD produce the events that reflect what actually happened, even when the result does not follow the typical funnel ordering. Attribution consumers SHOULD treat uncorroborated citations (no matching grounding event) as lower-confidence signals.
+
+#### Conversation turns
+
+Conversation turns (3.8) overlay this lifecycle:
+
+1. **Turn started** — user submits a query
+2. **Turn completed** — agent finishes response
+
+A single grounding event with session scope influences all subsequent turns. Citation, display, and engagement events occur within specific turns.
+
+### 4.3 Source roles
+
+A `content_retrieved` event can originate from multiple observers of the same retrieval. The `source_role` field identifies who is reporting:
+
+| Source role | Reporter | Description |
+|-------------|----------|-------------|
+| `origin` | Content owner's web server | Content owner detected an AI agent request and reported it |
+| `edge` | Edge network (CDN, edge compute) | An edge layer (Cloudflare, Fastly, Akamai, etc.) that observed the request |
+| `index` | Search index or content repository | An intermediary that served the content to the agent |
+| `agent` | AI agent | The agent itself, reporting content it fetched |
+
+The `origin` and `edge` source roles enable content owners to report AI agent traffic using their existing infrastructure, with no cooperation from the AI agent required. Content-owner emitters typically submit individual events rather than complete sessions, since they do not have visibility into the agent's session context. Attribution consumers correlate these standalone events with agent-reported sessions using the `oa_telemetry_id` field. Example B.2 demonstrates this pattern.
+
+A marketplace operating as both emitter and attribution consumer receives telemetry from platforms (as a consumer), resolves content owner identity from `content_id` or `content_url`, and generates per-content-owner usage reports. The marketplace's own `source_role: index` events provide a corroboration layer — it can cross-reference what it served against what platforms reported using.
+
+`content_grounded`, `content_cited`, `content_displayed`, and `content_engaged` events are reported by the agent (or agent operator) only. These events describe what happened inside the agent or in the user interface, which is not observable from the content owner's infrastructure.
+
+When multiple observers report the same retrieval, events are correlated using the `OA-Telemetry-ID` header (see section 7.2). A retrieval corroborated by multiple sources is a stronger signal than either alone. An uncorroborated origin- or edge-reported retrieval (no matching agent event) may indicate a scraper that does not support the telemetry protocol, or missing header propagation.
+
+### 4.4 Content identification
+
+Events identify content using at least one of two fields:
+
+| Field | Scope | Purpose |
+|-------|-------|---------|
+| `content_url` | Event | URL as fetched, or canonical URL |
+| `content_id` | Event | Stable content identifier (CMS ID, DOI, ISBN, ISCC, C2PA manifest hash) |
+
+Either field is sufficient. Both SHOULD be included when available.
+
+`content_url` is convenient for origin-side emitters (CDN, edge, origin) where the URL is directly observable. `content_id` is more reliable when:
+
+- URLs change over time but the underlying article is the same
+- Content is accessed through multiple paths (CDN, marketplace, cache)
+- The emitter is a marketplace or index with its own identifier scheme
+- Content was grounded from cache and the original URL was not preserved
+- The content owner needs to match telemetry to internal systems
+
+Emerging content identification standards — including [ISCC](https://www.iso.org/standard/88469.html) (ISO 24138, content-derived fingerprints) and [C2PA](https://c2pa.org/) (provenance manifests) — can be used as `content_id` values. The spec does not mandate a specific identifier scheme. Content owners communicate their scheme through structured data on the page, `.well-known/openattribution` manifests, content access protocol metadata, or HTTP response headers.
+
+Repositories and mirrors SHOULD use the canonical content identifier from the original source as `content_id` (e.g., the original DOI, ISCC, or content-owner-assigned ID) rather than a repository-internal identifier, so that telemetry from multiple hosts of the same content can be correlated without requiring identifier translation.
+
+When correlating events across observers (section 7.2), emitters SHOULD use the canonical URL (from `<link rel="canonical">` or HTTP `Link` header) rather than the URL as fetched, to avoid mismatches caused by redirects, query parameters, or mobile/AMP variants.
+
+When both `content_url` and `content_id` are present on events being correlated, `content_url` values MUST match exactly for URL-based correlation. When exact URL matching is unreliable, `content_id` provides a stable alternative.
+
+Additional content metadata — version, last-modified timestamp, content hash, media type — is carried in event data profiles (section 6) where its relevance varies by event type and source role.
+
+## 5. Schema
+
+### 5.1 Session
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `schema_version` | string | Yes | Schema version (e.g., "0.4") |
+| `schema_version` | string | Yes | Schema version (e.g., "0.1") |
 | `session_id` | UUID | Yes | Unique session identifier |
-| `initiator_type` | string | No | Who started the session: `"user"` (default) or `"agent"` (see 2.2) |
-| `initiator` | Initiator | No | Initiator identity when `initiator_type` is `"agent"` (see 3.1.4) |
-| `agent_id` | string | No | Responding agent identifier (for multi-agent systems) |
-| `content_scope` | string | No | Opaque content collection identifier (see 3.1.1) |
-| `manifest_ref` | string | No | AIMS manifest reference (see 3.1.2) |
-| `prior_session_ids` | UUID[] | No | Previous sessions in journey (see 3.1.3) |
+| `agent_id` | string | No | Responding agent identifier |
+| `content_scope` | string | No | Opaque content collection identifier (see 5.1.1) |
+| `manifest_ref` | string | No | AIMS manifest reference (see 5.1.2) |
 | `started_at` | datetime | Yes | Session start (UTC) |
 | `ended_at` | datetime | No | Session end (UTC) |
-| `user_context` | UserContext | No | User segmentation data |
+| `conformance_level` | string | No | Informational conformance level advertised by the emitter (see section 5.7). Values: `retrieval`, `grounding`, `attribution` |
+| `document_type` | string | No | `"session"` for session documents (see section 7.1 for the standalone event format) |
 | `events` | Event[] | No | Ordered list of events |
-| `outcome` | SessionOutcome | No | Final session outcome |
 
-#### 3.1.1 Content Scope
+#### 5.1.1 Content scope
 
-The `content_scope` field is an opaque identifier that groups sessions by their content access context. Implementers define its meaning based on their architecture:
+The `content_scope` field is an opaque identifier that groups sessions by their content access context. Implementers define its meaning:
 
-| Implementation | `content_scope` Value |
-|----------------|----------------------|
-| Content mix platform | Mix ID (e.g., "electronics-reviews") |
-| AIMS-based system | Manifest DID (e.g., "did:aims:abc123") |
+| Implementation | Example value |
+|----------------|---------------|
+| Content platform | `"electronics-reviews"` |
+| AIMS-based system | `"did:aims:abc123"` |
 | API key scoped | API key identifier |
-| Customer agreement | Agreement or contract ID |
+| Agreement-based | Agreement or contract ID |
 
-Attribution consumers can aggregate across sessions that share the same `content_scope` without the schema mandating a specific access control model.
+Attribution consumers can aggregate across sessions that share the same `content_scope` without the schema mandating a specific access control model. When a session spans multiple licensing agreements, emitters MAY use `license_ref` on individual events as a per-event scope proxy, since `license_ref` is event-level while `content_scope` is session-level.
 
-#### 3.1.2 Manifest Reference
+#### 5.1.2 Manifest reference
 
-The `manifest_ref` field optionally references an [AIMS (AI Manifest Standard)](https://github.com/openattribution-org/aims) manifest. With it, consumers can:
-
-- Verify that cited content was licensed at session time
-- Cross-reference telemetry with licensing agreements
-- Build audit trails for content usage compliance
+The `manifest_ref` field optionally references an [AIMS](https://github.com/openattribution-org/aims) manifest, enabling consumers to verify that cited content was licensed at session time.
 
 Format: AIMS DID (e.g., `did:aims:abc123`) or URL to manifest.
 
-#### 3.1.3 Cross-Session Attribution
-
-The `prior_session_ids` field links sessions into multi-session user journeys:
-
-```
-Day 1: Research session (Session A)
-Day 3: Comparison session (Session B, prior_session_ids: [A])
-Day 7: Purchase session (Session C, prior_session_ids: [A, B])
-```
-
-This supports:
-- Multi-day customer journeys (common in high-consideration purchases)
-- Cross-device attribution (user researches on mobile, converts on desktop)
-- Returning visitor attribution
-
-Attribution algorithms can use this chain to distribute credit across the full journey rather than just the converting session.
-
-#### 3.1.4 Initiator Identity
-
-When `initiator_type` is `"agent"`, the `initiator` object identifies the calling agent:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `agent_id` | string | No | Calling agent's identifier |
-| `manifest_ref` | string | No | Calling agent's AIMS manifest reference |
-| `operator_id` | string | No | Organization operating the calling agent |
-
-When `initiator_type` is `"user"` (or omitted), the `initiator` field is omitted and `user_context` describes the initiator instead.
-
-In agent-to-agent sessions, both sides have identity:
-- **Responder**: `agent_id` and `manifest_ref` at the session level (existing fields)
-- **Initiator**: `initiator.agent_id` and `initiator.manifest_ref`
-
-This separation allows attribution consumers to understand which agent requested content and which agent served it.
-
-### 3.2 Event
+### 5.2 Event
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | UUID | No | Unique event identifier (generated by server if not provided) |
-| `type` | EventType | Yes | Event type (see 3.3) |
+| `type` | EventType | Yes | Event type (see 5.3) |
 | `timestamp` | datetime | Yes | Event timestamp (UTC) |
-| `content_url` | string | No | Associated content URL |
-| `product_id` | UUID | No | Associated product |
+| `turn_id` | string | No | Associates this event with a conversation turn (see 5.2.1) |
+| `source_role` | SourceRole | No | Who is reporting: `origin`, `edge`, `index`, `agent` (see 4.3) |
+| `oa_telemetry_id` | UUID | No | Correlation ID for cross-observer deduplication (see 7.2) |
+| `content_url` | string | No | Content URL as fetched or canonical URL |
+| `content_id` | string | No | Content owner's stable content identifier (see 4.4) |
+| `license_ref` | string | No | Reference to the licence under which content was accessed |
 | `turn` | ConversationTurn | No | Conversation data (for turn events) |
-| `data` | object | No | Additional event metadata |
+| `data` | object | No | Type-specific metadata (see section 6) |
 
-### 3.3 Event Types
+#### 5.2.1 Turn association
 
-#### Content Events
+The `turn_id` field associates content events with a specific conversation turn.
 
-| Type | Description | Expected Fields |
+Emitters SHOULD set `turn_id` on `content_cited`, `content_displayed`, and `content_engaged` events. Emitters SHOULD also set `turn_id` on `content_grounded` events when `scope` is `turn`. The corresponding `turn_started` and `turn_completed` events SHOULD carry the same `turn_id`.
+
+`turn_id` is scoped to the session. Format is emitter-defined (sequential integers, UUIDs, or any opaque string).
+
+Content events without a `turn_id` (e.g., `content_grounded` with `scope: session`) apply to the session as a whole rather than a specific turn.
+
+#### 5.2.2 Source role
+
+The `source_role` field SHOULD be set on `content_retrieved` events. When multiple systems observe the same retrieval, the `oa_telemetry_id` field correlates their events for deduplication.
+
+#### 5.2.3 Licence reference
+
+The `license_ref` field connects a telemetry event to the content access licence that authorised it. The format depends on the access protocol: a JWT `jti` claim, a CoMP package ID, or any opaque identifier that both parties can resolve.
+
+### 5.3 Event types
+
+#### Content events
+
+| Type | Description | Expected fields |
 |------|-------------|-----------------|
-| `content_retrieved` | Content fetched from source | `content_url` |
-| `content_displayed` | Content shown to user | `content_url` |
-| `content_engaged` | User interacted with content | `content_url`, `data.engagement_type` |
-| `content_cited` | Content referenced in response | `content_url`, `data.*` (see below) |
+| `content_retrieved` | Content fetched from source | `content_url`, `source_role`, `data.media_type` |
+| `content_grounded` | Content loaded into agent context | `content_url` or `content_id`, `data.scope`, `data.cached` |
+| `content_cited` | Content referenced in response | `content_url`, `data.citation_type`, `data.position` |
+| `content_displayed` | Content reference shown to user | `content_url`, `data.display_type` |
+| `content_engaged` | User interacted with content | `content_url`, `data.engagement_type` (see 6.7) |
 
-##### Citation Quality Signals
+#### Conversation events
 
-The `content_cited` event supports optional quality signals in the `data` field for more accurate attribution:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `data.citation_type` | string | How content was used: `direct_quote`, `paraphrase`, `reference`, `contradiction` |
-| `data.excerpt_tokens` | integer | Token count of the excerpt used |
-| `data.position` | string | Prominence in response: `primary`, `supporting`, `mentioned` |
-| `data.content_hash` | string | SHA256 of cited content (for verification) |
-
-**Citation Types:**
-
-- `direct_quote`: Verbatim or near-verbatim reproduction
-- `paraphrase`: Restated in different words
-- `reference`: Mentioned or linked without quoting
-- `contradiction`: Content was retrieved but contradicted/corrected
-
-The `contradiction` type supports negative attribution: content that was retrieved but explicitly disagreed with should not receive positive credit.
-
-**Example:**
-
-```json
-{
-  "type": "content_cited",
-  "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
-  "data": {
-    "citation_type": "paraphrase",
-    "excerpt_tokens": 85,
-    "position": "primary",
-    "content_hash": "sha256:a1b2c3..."
-  }
-}
-```
-
-#### Conversation Events
-
-| Type | Description | Expected Fields |
+| Type | Description | Expected fields |
 |------|-------------|-----------------|
-| `turn_started` | User initiated a turn | `turn` |
-| `turn_completed` | Agent finished responding | `turn` |
+| `turn_started` | User initiated a turn | `turn_id`, `turn` |
+| `turn_completed` | Agent finished responding | `turn_id`, `turn` |
 
-#### Commerce Events
+#### Extension events
 
-| Type | Description | Expected Fields |
-|------|-------------|-----------------|
-| `product_viewed` | Product page viewed | `product_id` |
-| `product_compared` | Products compared | `data.product_ids` |
-| `cart_add` | Item added to cart | `product_id` |
-| `cart_remove` | Item removed from cart | `product_id` |
-| `checkout_started` | Checkout initiated | `data.cart_value_amount`, `data.currency` |
-| `checkout_completed` | Purchase completed | `data.order_value_amount`, `data.currency` |
-| `checkout_abandoned` | Checkout abandoned | - |
+The core schema defines content and conversation events. Commerce-specific fields (product identifiers, checkout events) are defined in the [ACP extension](./acp/). Implementations MAY define additional event types using the `data` field for type-specific metadata.
 
-### 3.4 Conversation Turn
+### 5.4 Conversation turn
 
-The `ConversationTurn` object captures query/response data with privacy controls.
+A conversation turn represents one query-response exchange. Turn data is carried on `turn_started` and `turn_completed` events via the `turn` field. The `privacy_level` controls which fields are populated (see 5.5).
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `privacy_level` | PrivacyLevel | Yes | Data sharing level |
 | `query_text` | string | No | User's query (full/summary) |
 | `response_text` | string | No | Agent's response (full/summary) |
-| `query_intent` | IntentCategory | No | Classified intent (intent+) |
-| `response_type` | string | No | Response classification |
+| `query_intent` | IntentCategory | No | Classified intent (available at `intent`, `summary`, and `full` levels) |
+| `response_type` | string | No | Response classification (free-form; e.g., `"recommendation"`, `"explanation"`, `"comparison"`) |
+| `response_mode` | ResponseMode | No | Product surface or generation mode (see 5.4.1) |
 | `topics` | string[] | No | Detected topics/entities |
 | `content_urls_retrieved` | URI[] | No | Content fetched |
-| `content_urls_cited` | URI[] | No | Content used in response |
+| `content_urls_cited` | URI[] | No | Content cited in response |
 | `query_tokens` | integer | No | Query token count |
 | `response_tokens` | integer | No | Response token count |
 | `model_id` | string | No | Model identifier |
+| `ad_rendered` | boolean | No | Whether advertising was displayed alongside the response |
 
-### 3.5 Privacy Levels
+#### 5.4.1 Response modes
 
-| Level | Query/Response Text | Intent | Topics | Token Counts | Content URLs |
-|-------|---------------------|--------|--------|--------------|-------------|
-| `full` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `summary` | ✓ (summarized) | ✓ | ✓ | ✓ | ✓ |
-| `intent` | ✗ | ✓ | ✓ | ✓ | ✓ |
-| `minimal` | ✗ | ✗ | ✗ | ✓ | ✓ |
+`response_mode` identifies the product surface or generation mode, distinct from `response_type` which classifies the nature of the answer (recommendation, explanation, etc.):
 
-### 3.6 Intent Categories
+| Value | Description |
+|-------|-------------|
+| `standard` | Standard conversational response |
+| `deep_research` | Multi-step research mode with extended retrieval |
+| `search` | Search results presentation |
+| `code_generation` | Code generation or editing |
 
-Standardized intent classifications:
+These are the recommended values. Platforms with additional product surfaces (collaborative canvases, voice, image generation, etc.) MAY use custom string values. Attribution consumers MUST tolerate unknown `response_mode` values.
 
-**Research Intents:**
-- `product_research` - Researching products/services
-- `comparison` - Comparing options
-- `how_to` - Seeking instructions
-- `troubleshooting` - Solving a problem
-- `general_question` - General information seeking
+### 5.5 Privacy levels
 
-**Commerce Intents:**
-- `purchase_intent` - Ready to buy
-- `price_check` - Checking prices
-- `availability_check` - Checking availability
-- `review_seeking` - Looking for reviews
+| Level | Query/response text | Intent | Topics | Token counts | Content URLs | Response classification | Platform metadata |
+|-------|---------------------|--------|--------|--------------|-------------|------------------------|-------------------|
+| `full` | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| `summary` | Summarised | Yes | Yes | Yes | Yes | Yes | Yes |
+| `intent` | No | Yes | Yes | Yes | Yes | Yes | Yes |
+| `minimal` | No | No | No | Yes | Yes | No | No |
 
-**Other:**
-- `chitchat` - Social conversation
-- `other` - Uncategorized
+**Token counts** includes `query_tokens` and `response_tokens`. These are available at all levels because they are needed for token-based counting models and do not reveal user intent or platform strategy.
 
-### 3.7 Session Outcome
+**Response classification** includes `response_type` (e.g., `"recommendation"`, `"explanation"`). Available at `intent` level and above, as it can reveal the nature of the user's query.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | OutcomeType | Yes | conversion/abandonment/browse |
-| `value_amount` | integer | No | Monetary value in minor currency units |
-| `currency` | string | No | ISO 4217 currency code |
-| `products` | UUID[] | No | Products in outcome |
-| `metadata` | object | No | Additional outcome data |
+**Platform metadata** includes `ad_rendered`, `model_id`, and `response_mode`. These describe the agent or platform, not the user, but may reveal commercially sensitive information. Available at `intent` level and above.
 
-**Minor Currency Units:**
+**Content URL arrays.** `content_urls_retrieved` and `content_urls_cited` are available at all levels, including `minimal`, because individual content events already expose `content_url` at every privacy level. The `minimal` level protects query-level signals (intent, topics, response categorisation), not the existence of content attribution relationships.
 
-Monetary values are stored as integers in the smallest denomination of the currency:
-- USD/EUR: cents (e.g., $49.99 = 4999)
-- GBP: pence (e.g., £49.99 = 4999)
-- JPY: yen (e.g., ¥5000 = 5000, no subdivision)
-- KWD: fils (e.g., 1.000 KWD = 1000, 3 decimal places)
+Emitters SHOULD populate `content_urls_retrieved` and `content_urls_cited` from the corresponding content events in the session. These arrays are a convenience for consumers who process turns without joining to content events. When the arrays conflict with the individual content events, the content events are authoritative.
 
-This follows the standard pattern used by Stripe and other payment processors.
+### 5.6 Intent categories
 
-### 3.8 User Context
+**Information:** `question`, `explanation`, `comparison`, `how_to`, `troubleshooting`, `fact_check`, `analysis`, `opinion_seeking`
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `external_id` | string | No | Opaque user identifier (not PII) |
-| `segments` | string[] | No | User segment labels |
-| `attributes` | object | No | Additional attributes |
+**Creative:** `creative`
 
-## 4. Transport
+**Commerce:** `purchase_intent`
 
-OpenAttribution defines a signal format, not a wire protocol. The schema specifies the shape of sessions, events, and outcomes. How you move them is up to your implementation.
+**Other:** `chitchat`, `other`
 
-Common patterns:
+These are the core values. Extensions (e.g., the ACP extension's `price_check`, `availability_check`, `review_seeking`) MAY define additional intent category values. Attribution consumers MUST tolerate unknown `query_intent` values.
 
-- **HTTP postback** - Agent POSTs events to a telemetry endpoint during or after the session. The reference server and Python SDK implement this.
-- **Bulk upload** - Agent collects signals locally and uploads a complete `TelemetrySession` after it ends. Useful for batch pipelines, offline agents, or post-hoc reporting.
-- **MCP tool calls** - Agent exposes attribution recording as an MCP tool. Signals flow over the existing MCP transport (SSE, stdio, etc.) as part of normal tool use.
-- **Message queues** - High-throughput systems publish signals to Kafka, SQS, etc. A consumer writes to storage.
-- **Direct database writes** - Co-located systems skip HTTP and write session rows directly.
+### 5.7 Conformance levels
 
-### 4.1 Recommended HTTP Endpoints
+Conformance to this specification is assessed by the event types an emitter produces and the requirements listed per conformance level below. The test suite in `tests/` provides an informative verification aid. The JSON Schema (`telemetry-session.json`) validates structure and types but cannot enforce all conformance rules — see section 5.7.4 for application-layer rules that require validation beyond JSON Schema.
 
-For implementations using HTTP/REST:
+Emitters advertise one of three conformance levels. The authoritative declaration lives in the emitter's `.well-known/openattribution` manifest (for origin-side emitters) or AIMS registration (for agents). Emitters MAY also include an optional `conformance_level` field on individual session documents; when present it is informational and consumers MUST NOT treat it as a substitute for verifying the emitter's registered level.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/session/start` | POST | Start a new session |
-| `/events` | POST | Record events (batch) |
-| `/session/end` | POST | End session with outcome |
-| `/session/bulk` | POST | Upload a complete session in one request |
+| Level | Events | What it proves | Typical emitter |
+|-------|--------|----------------|-----------------|
+| **Retrieval** | `content_retrieved` | Content was fetched by an agent | Content owner CDN, edge network, origin server |
+| **Grounding** | Above + `content_grounded`, turn events | Content entered the agent's context | Agent with basic instrumentation |
+| **Attribution** | Above + `content_cited`, `content_displayed`, `content_engaged` | Full content lifecycle from retrieval to user engagement | Agent with full instrumentation |
 
-The event-by-event endpoints (`start`, `events`, `end`) suit real-time agents that emit signals as they go. The bulk endpoint suits agents that buffer locally and upload after the session closes.
+#### 5.7.1 Retrieval conformance
 
-### 4.2 Authentication
+A conforming **Retrieval** emitter MUST:
 
-Implementations SHOULD use API keys or OAuth tokens. The standard does not mandate a specific authentication mechanism.
+- Set `source_role` on `content_retrieved` events
+- Include at least one of `content_url` or `content_id` on every event
+- Set `type` and `timestamp` on every event
 
-## 5. Privacy Considerations
+This level requires no agent cooperation. Content owners can implement it using CDN edge compute (Cloudflare Workers, Fastly Compute, etc.).
 
-### 5.1 Data Minimization
+Origin-side emitters operating at the CDN edge SHOULD include `bot_category`, `response_status`, and `response_bytes` alongside the required fields. These fields make retrieval events useful for bot classification and volume analysis.
+
+#### 5.7.2 Grounding conformance
+
+A conforming **Grounding** emitter MUST satisfy Retrieval requirements and also:
+
+- Produce sessions with `schema_version`, `session_id`, `agent_id`, and `started_at`
+- Emit `content_grounded` events with `data.scope`
+- Include at least one of `content_url` or `content_id` on every content event
+- Emit `turn_started` and `turn_completed` events with `privacy_level`
+
+A Grounding emitter SHOULD include `data.tokens_ingested` and `data.cached` on grounding events.
+
+Emitters using standalone event delivery (section 7.1) MUST include `agent_id` and `session_id` on the standalone event envelope to satisfy Grounding conformance.
+
+#### 5.7.3 Attribution conformance
+
+A conforming **Attribution** emitter MUST satisfy Grounding requirements and also:
+
+- Emit `content_cited` events with `data.citation_type`
+- NOT include fields above the advertised `privacy_level` on conversation turns (e.g., `query_text` MUST NOT be present when `privacy_level` is `intent` or `minimal`)
+
+An Attribution emitter SHOULD:
+
+- Emit `content_displayed` and `content_engaged` events when applicable
+- Include `data.position` on citation events
+- Include `data.display_type` on display events
+
+#### 5.7.4 Attribution consumers
+
+A conforming **attribution consumer** MUST:
+
+- Accept sessions with any `schema_version` that shares the same major version. During the preview period (0.x), consumers MUST accept sessions with the exact same minor version (e.g., a 0.1 consumer accepts 0.1 only). The major-version compatibility rule takes effect from 1.0.0 onward.
+- Tolerate unknown fields without error
+- Tolerate events from any conformance level
+- Accept both session documents and standalone events, and reconstruct sessions from standalone events where needed (see section 7.1)
+
+Consumers that receive privacy-violating turns (e.g., `query_text` present at `minimal` level) SHOULD strip the offending fields rather than rejecting the document.
+
+#### 5.7.5 Application-layer conformance rules
+
+The following conformance rules cannot be expressed in JSON Schema and require application-layer validation:
+
+- At least one of `content_url` or `content_id` MUST be present on every content event
+- Fields above the advertised `privacy_level` MUST NOT be present on conversation turns
+- Conformance level requirements (sections 5.7.1–5.7.3) are cumulative
+
+## 6. Data profiles
+
+The `data` field on events carries type-specific metadata. These profiles document the recommended fields by event type and source role, in lifecycle order. None are required, but emitting them provides additional detail for attribution.
+
+### 6.1 Retrieved content metadata (`content_retrieved`)
+
+When the reporter is the agent (`source_role: agent`), the following fields are recommended:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `media_type` | string | Content medium: `text`, `image`, `video`, `audio` |
+
+`media_type` on retrieval events allows content owners to see what types of content are being fetched, independent of whether those retrievals result in grounding or citation. Defaults to `text` when absent.
+
+### 6.2 Edge enrichment (`content_retrieved` + `source_role: edge`)
+
+CDN and edge network integrations SHOULD include these fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_agent` | string | Request User-Agent header |
+| `bot_category` | string | Edge platform's bot classification (see below) |
+| `verified` | boolean | Whether the bot identity was cryptographically verified |
+| `cache_status` | string | Edge cache result: `hit`, `miss`, `bypass`, `dynamic` |
+| `response_status` | integer | HTTP response status code |
+| `response_bytes` | integer | Response body size in bytes |
+| `ja4` | string | JA4 TLS client fingerprint |
+| `asn` | integer | Client AS number |
+| `asn_org` | string | Client AS organisation name |
+| `country` | string | ISO 3166-1 alpha-2 country code |
+| `ip_hash` | string | SHA-256 of client IP (`sha256:{hex}`) |
+
+#### Bot categories
+
+The `bot_category` field carries the edge platform's classification of the requesting bot. Recommended values:
+
+| Value | Description | Fastly signal | Cloudflare signal |
+|-------|-------------|---------------|-------------------|
+| `training` | Crawling for model training | `AI-CRAWLER` | `AI Crawler` |
+| `inference` | Fetching at query time (RAG) | `AI-FETCHER` | `AI Assistant` |
+| `search` | AI search indexing | - | `AI Search` |
+
+The `inference` category is where content attribution is most relevant — there is a user, a query, and a session behind the retrieval. `training` crawls have no session context. The `bot_category` field on retrieval events can distinguish training crawls from inference fetches, but training-specific telemetry is out of scope for this specification. Edge platforms map their native classification to these values.
+
+### 6.3 Origin enrichment (`content_retrieved` + `source_role: origin`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `user_agent` | string | Request User-Agent header |
+| `ip_hash` | string | SHA-256 of client IP |
+| `response_status` | integer | HTTP response status code |
+
+### 6.4 Grounding data (`content_grounded`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `scope` | string | Influence scope: `session` or `turn` (see below) |
+| `cached` | boolean | Content served from agent-side cache rather than a live fetch |
+| `tokens_ingested` | integer | Token count of content placed in the generation context (see below) |
+| `content_version` | string | Content version identifier (ETag, revision ID, CMS version) |
+| `content_last_modified` | datetime | When the content was last modified at source |
+| `content_hash` | string | SHA-256 of the content as ingested (`sha256:{hex}`) |
+| `media_type` | string | Content medium: `text`, `image`, `video`, `audio` |
+
+`tokens_ingested` counts tokens actually placed in the generation model's context. For chunked retrieval, count only the tokens used, not the full source document. The token count uses the generation model's tokeniser (the model identified in `model_id` on the corresponding `turn_completed` event), not the retrieval or embedding model's tokeniser.
+
+#### Grounding scope
+
+| Value | Description |
+|-------|-------------|
+| `session` | Content informed all subsequent responses in the session. |
+| `turn` | Content informed this specific response only. |
+
+For session-scoped grounding, the number of turns influenced is derivable from the session's `turn_started` events following the grounding event. This avoids redundant per-turn grounding events for content that persists across responses.
+
+#### Agent architecture and the grounding boundary
+
+The grounding event marks the point where content enters the generation model's context — the boundary where content can directly influence the model's output text. Content used only for retrieval selection (embedding similarity search, re-ranking, query routing) without entering the generation context is not grounded.
+
+In a pipeline that retrieves 100 articles, generates embeddings for all 100, re-ranks to 10, and places 5 in the generation prompt — the grounding count is 5. The 95 articles used only for selection are retrievals, not groundings. The 10 that survived re-ranking but were not placed in context are also retrievals, not groundings.
+
+The grounding event captures the same boundary regardless of agent architecture:
+
+| Architecture | What grounding means | What is NOT grounded |
+|---|---|---|
+| Standard RAG | Content placed in the LLM prompt after retrieval and re-ranking | Content retrieved but eliminated during re-ranking |
+| Reasoning model | Content ingested before a chain-of-thought that may span thousands of internal tokens | Content used only to select which reasoning chain to invoke |
+| Multi-step agent | Content that entered a sub-agent's generation context | Content used only by the orchestrator to decide which sub-agents to invoke |
+| Embedding-based | Content chunks whose embeddings were placed in the generation context | Embeddings used only for similarity search or candidate selection |
+
+This boundary is deliberately drawn at the generation context, not at earlier processing stages. The generation context is the narrowest defensible boundary and the one most directly tied to content influence on the output. See [CONSIDERATIONS.md](./CONSIDERATIONS.md#grounding-boundary-definition) for discussion of alternative boundaries and conditions for refinement.
+
+#### Caching
+
+The `cached` field distinguishes live fetches from cached reuse. A live fetch produces both a `content_retrieved` and a `content_grounded` event. A cached grounding produces `content_grounded` only — there is no corresponding HTTP request for the content owner's infrastructure to observe.
+
+Attribution consumers may weight cached and live groundings differently. An agent may cache an article for days or weeks, grounding it in multiple sessions from a single retrieval. A single retrieval produces one `content_retrieved` event but potentially many `content_grounded` events across subsequent sessions.
+
+Agents SHOULD preserve the `license_ref` from the original retrieval when emitting cached grounding events. Without this, attribution consumers cannot link cached usage to the licence that authorised the original access.
+
+#### Freshness and verification
+
+`content_version` and `content_last_modified` enable freshness analysis. Content owners with time-sensitive content (financial news, live events, market data) can use these fields to distinguish real-time use from stale cache hits.
+
+When content is grounded from cache, `content_last_modified` reflects when the source content was last modified, not when it was cached. Agents SHOULD preserve the `Last-Modified` header or equivalent metadata from the original retrieval.
+
+`content_hash` is the SHA-256 of the content as it entered the agent's context. When the agent ingests a chunk rather than the full document, this is the chunk hash, not the document hash. The same hash on a corresponding `content_cited` event identifies which grounded content was cited — it matches the grounding hash, not the full source document. Content owners can compare grounding hashes against known document or chunk hashes to detect truncation, modification, or stale content.
+
+### 6.5 Citation data (`content_cited`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `citation_type` | string | How content was used: `direct_quote`, `paraphrase`, `reference`, `contradiction`, `unclassified` |
+| `media_type` | string | Content medium: `text`, `image`, `video`, `audio` |
+| `excerpt_tokens` | integer | Token count of the excerpt used |
+| `excerpt_chars` | integer | Character count of the excerpt used |
+| `excerpt_hash` | string | SHA-256 of the cited excerpt text (`sha256:{hex}`). See below. |
+| `position` | string | Prominence in response: `primary`, `supporting`, `mentioned`, `unclassified` |
+| `content_hash` | string | SHA-256 matching the corresponding `content_grounded` event (`sha256:{hex}`). When the agent chunked the source, this is the chunk hash, not the full document hash. |
+| `url_verified` | boolean | Whether the cited URL was verified to resolve to matching content |
+
+`media_type` identifies the content medium. Defaults to `text` when absent.
+
+`excerpt_tokens` is the agent-native measurement. `excerpt_chars` provides the same information in a unit familiar to content owners and licensors. Emitters SHOULD include both when available.
+
+`excerpt_hash` is the SHA-256 of the excerpt text as it appears in the agent's response — the exact string the agent produced, not the source text it was derived from. For `direct_quote` citations, a matching hash against the source content confirms verbatim fidelity. For `paraphrase` citations, a non-matching hash is expected; verification tooling can use the hash to confirm which specific excerpt was cited and compare it against known source passages. Emitters SHOULD include `excerpt_hash` when `excerpt_tokens` or `excerpt_chars` is present. The hash uses the same `sha256:{hex}` format as `content_hash`.
+
+The `contradiction` type supports negative attribution: content that was retrieved but explicitly disagreed with should not receive positive credit.
+
+Emitters SHOULD use `unclassified` rather than forcing a classification when the agent cannot confidently determine the citation type or position.
+
+`url_verified` indicates whether the agent confirmed that the cited URL resolves to content matching the citation. When `false` or absent, the citation may reference a hallucinated or outdated URL. `url_verified` MAY be set asynchronously after response generation. Platforms that batch-verify URLs periodically rather than per-request are conforming. A value of `false` indicates the URL was not verified, not that verification failed.
+
+When `content_hash` is absent or does not match any grounding event's hash (for example, because the agent re-chunked content between grounding and citation), consumers SHOULD fall back to matching on `content_url` or `content_id`. The correlation may be imprecise when the same content appears in multiple grounding events.
+
+### 6.6 Display data (`content_displayed`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `display_type` | string | How the content reference was presented (see below) |
+
+#### Display types
+
+| Value | Description |
+|-------|-------------|
+| `link` | URL link in a source list or footnote |
+| `snippet` | Text snippet or preview |
+| `inline_quote` | Quoted text inline in the response |
+| `card` | Rich preview card (title, description, image) |
+| `detail_view` | Expanded or full-content presentation |
+
+When a session includes `content_displayed` events but no subsequent `content_engaged` events, the user saw a content reference but did not interact with it. Whether this pattern is meaningful depends on the commercial agreement. This pattern is only detectable from platform-reported `content_displayed` and `content_engaged` events. Retrieval is the only event stage observable from the CDN edge.
+
+### 6.7 Engagement data (`content_engaged`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `engagement_type` | string | Type of interaction (see below) |
+
+The content URL is identified by the event-level `content_url` field (section 5.2), not duplicated in `data`.
+
+#### Engagement types
+
+| Value | Description |
+|-------|-------------|
+| `link_click` | User clicked a link to the content |
+| `expand` | User expanded a collapsed citation or preview |
+| `copy` | User copied content text |
+| `share` | User shared the content or agent response containing it |
+
+`link_click` is the primary signal for clickthrough rate calculation. Attribution consumers can derive per-content-owner and aggregate clickthrough rates from the ratio of `link_click` engagements to `content_displayed` events for the same `content_url`.
+
+## 7. Transport
+
+This specification defines a signal format, not a wire protocol. Common delivery patterns include HTTP postback, bulk upload after session end, MCP tool calls, message queues (Kafka, SQS), and direct database writes. The choice of transport is left to implementers.
+
+### 7.1 Delivery formats
+
+The schema supports two delivery formats:
+
+**Session document.** A complete session with nested events, delivered after the session ends or at periodic intervals. This is the primary format described in section 5.1 and validated by `telemetry-session.json`.
+
+**Standalone event.** A single event with a session reference, delivered as it occurs. Suitable for streaming architectures and origin-side emitters (CDNs, origin servers) that do not have visibility into the agent's session.
+
+A standalone event carries `document_type`, `schema_version`, and optionally `session_id` alongside the event fields. The `document_type` field distinguishes standalone events from session documents:
+
+```json
+{
+  "document_type": "event",
+  "schema_version": "0.1",
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event": {
+    "type": "content_retrieved",
+    "timestamp": "2026-01-15T10:30:01Z",
+    "source_role": "edge",
+    "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
+    "content_url": "https://www.reuters.com/markets/abc123",
+    "data": {
+      "bot_category": "inference",
+      "cache_status": "miss",
+      "response_status": 200
+    }
+  }
+}
+```
+
+Session documents use `"document_type": "session"`. When `document_type` is absent, consumers SHOULD treat the document as a session (for backwards compatibility with pre-0.1 implementations).
+
+For origin-side emitters at Retrieval conformance level, `session_id` MAY be omitted when the content owner has no session context. Attribution consumers correlate these events with agent-reported sessions using the `oa_telemetry_id` field.
+
+The primary schema (`telemetry-session.json`) validates session documents. A standalone event envelope schema (`telemetry-event.json`) validates the event delivery format. Both schemas share the `TelemetryEvent` definition.
+
+#### Standalone event conformance constraints
+
+Standalone event delivery is sufficient for Retrieval conformance, where the emitter reports individual `content_retrieved` events with no session context.
+
+Grounding and Attribution conformance require session-level fields (`session_id`, `agent_id`, `started_at`) that the standalone event envelope does not carry by default. An agent emitter that uses standalone events for streaming delivery and wants to achieve Grounding or Attribution conformance MUST include the optional `agent_id` and `started_at` fields on the standalone event envelope. The `session_id` field, which is already defined on the envelope, becomes REQUIRED (not optional) at Grounding conformance and above. Consumers reconstruct the session from the stream of standalone events sharing the same `session_id`.
+
+Origin-side emitters (source role `origin` or `edge`) are not expected to achieve Grounding conformance and do not need these fields.
+
+### 7.2 OA-Telemetry-ID header
+
+When an AI agent fetches content over HTTP, it SHOULD include an `OA-Telemetry-ID` header containing a UUID:
+
+```
+GET /article/best-wireless-headphones HTTP/1.1
+Host: www.wirecutter.com
+OA-Telemetry-ID: 550e8400-e29b-41d4-a716-446655440000
+```
+
+The agent includes this same UUID as the `oa_telemetry_id` field on its `content_retrieved` event. If the content owner's infrastructure (origin server, edge layer) detects the header, it includes the same UUID on its own event.
+
+**Deduplication:**
+
+1. Group `content_retrieved` events by `oa_telemetry_id` + `content_url`
+2. Multiple events in a group represent one retrieval observed by multiple parties
+3. Events with no `oa_telemetry_id` are standalone
+
+The presence of the header signals that the requesting agent participates in the telemetry protocol. Its absence indicates the scraper is either unaware of the protocol or choosing not to participate. Content owners can use this distinction without blocking any traffic.
+
+#### Redirect chains
+
+HTTP clients typically do not forward custom headers through 301/302 redirects. When a retrieval involves redirects (e.g., from a short URL or paywall negotiation endpoint to the canonical URL), the content owner's origin or edge may not see the `OA-Telemetry-ID` header.
+
+Agents SHOULD re-attach the header on redirect requests to the same domain. For cross-domain redirects, agents MAY omit the header on the redirected request (the target domain may not be a telemetry participant).
+
+Content owners that rely on redirect-based routing SHOULD place telemetry instrumentation on the initial request handler, not only on the final origin. Content owners with redirect-based paywalls or authentication flows SHOULD instrument at the earliest point in the chain (the CDN edge, before any redirect) and SHOULD propagate the `OA-Telemetry-ID` value through their redirect chain as an internal parameter.
+
+When the agent's reported `content_url` differs from the content owner's observed URL due to redirects, `content_id` provides a stable correlation alternative (see section 4.4).
+
+#### Privacy consideration
+
+The header creates a correlation point visible to the content owner's infrastructure before the agent has decided what privacy level to share. Agents MAY limit header emission to content domains where they have a telemetry agreement.
+
+### 7.3 Routing and aggregation
+
+A single session typically contains events referencing content from multiple content owners. The agent cannot send the complete session to each content owner's endpoint individually — doing so would expose each content owner's content usage to the others (content owner A would see content owner B's content URLs in the same session).
+
+Agent emitters SHOULD send session documents to a single **attribution consumer** — an aggregation point that receives complete sessions and provides filtered views to individual content owners. The attribution consumer resolves content owner identity from `content_url` domains (via verified domain registrations) and exposes only the events relevant to each content owner.
+
+Three deployment patterns are anticipated:
+
+| Pattern | Operator | Description |
+|---------|----------|-------------|
+| **Public server** | OpenAttribution | The default. OA operates a free, neutral aggregation point. Content owners register domains and receive filtered telemetry for their content. |
+| **Platform-hosted** | Agent operator | The agent operator runs their own OA-compatible consumer and sends filtered reports to content owners under licensing agreements. |
+| **Marketplace-hosted** | Licensing intermediary | A content marketplace aggregates telemetry for their content owner catalogue and provides per-content-owner dashboards and royalty data. |
+
+All three patterns consume the same session format. The attribution consumer is responsible for domain resolution, content owner filtering, and access control. This specification does not mandate a specific aggregation topology.
+
+#### Origin manifests
+
+Origin-side `.well-known/openattribution` manifests declare where origin-emitted retrieval events are sent (CDN to content owner's chosen endpoint). They do not instruct agents where to send session documents. Agent routing is governed by the agent's telemetry configuration, not by origin manifests.
+
+#### Content owner resolution
+
+Attribution consumers resolve content owner identity from `content_url` domains. Content owners register and verify their domains with the attribution consumer; the consumer maps incoming event URLs to the owning organisation. This is the primary resolution path and requires `content_url` to be present on events.
+
+Events identified only by `content_id` (e.g., cached groundings where the URL was not preserved, or marketplace API content with no canonical URL) cannot be resolved by domain alone. Attribution consumers SHOULD support `content_id` prefix-based resolution as a secondary path when content owners register their identifier schemes, but this is not yet a normative requirement.
+
+#### Cross-consumer correlation
+
+Origin-side emitters and agent-side emitters MAY use different attribution consumers. A content owner's CDN sends retrieval events to the OA public server; an agent sends sessions to its own consumer.
+
+The `oa_telemetry_id` field (section 7.2) correlates the same retrieval across consumers — both sides share the same UUID from the HTTP request. This correlation operates at the retrieval level only. Grounding, citation, and engagement events have no independent origin-side counterpart to correlate against.
+
+## 8. Privacy
+
+### 8.1 Data minimisation
 
 Emitters SHOULD:
 
-- Use the minimum `privacy_level` necessary for their use case
-- Avoid including PII in `user_context.external_id`
-- Hash or anonymize identifiers where possible
+- Use the minimum `privacy_level` necessary
+- Hash or anonymise identifiers where possible
 
-### 5.2 Data Agreements
+### 8.2 Recommended levels
 
-The appropriate privacy level depends on the trust relationship between parties. Common scenarios:
-
-| Scenario | Recommended Level |
+| Scenario | Recommended level |
 |----------|-------------------|
 | First-party analytics | `full` |
 | Trusted partner | `summary` or `intent` |
 | Third-party attribution | `intent` or `minimal` |
 | Public benchmarking | `minimal` |
 
-### 5.3 Retention
+### 8.3 Retention
 
 This specification does not mandate retention periods. Consumers SHOULD document their retention policies.
 
-## 6. Attribution
+## 9. Attribution
 
-OpenAttribution provides the telemetry data needed for attribution but does not mandate specific algorithms. Common approaches include:
+This specification provides the telemetry data needed for attribution but does not mandate specific algorithms. Common approaches:
 
-- **Last-touch**: Credit to last content before conversion
-- **First-touch**: Credit to first content in session
-- **Linear**: Equal credit to all content
-- **Position-based**: Weighted by position in journey
-- **SHAP-based**: Game-theoretic contribution scores
+- **Last-touch** — credit to last content before session end
+- **First-touch** — credit to first content in session
+- **Linear** — equal credit to all content
+- **Position-based** — weighted by position in journey
+- **SHAP-based** — game-theoretic contribution scores
 
-## 7. Extensibility
+### 9.1 Counting semantics
 
-### 7.1 Custom Event Types
+The schema records discrete events. A `content_grounded` event represents content entering the agent's context. A `content_cited` event represents content being explicitly referenced in a response. These are independent signals.
 
-Implementations MAY define custom event types using the `data` field:
+A session where one article is grounded with session scope, the user asks ten questions, and the article is cited three times produces:
+
+- 1 `content_grounded` event
+- 10 `turn_completed` events
+- 3 `content_cited` events
+
+Whether this constitutes one royalty event, three, or ten depends on the commercial agreement. The schema provides the raw signals; attribution consumers choose the counting model.
+
+| Counting model | Counts | Suited for |
+|----------------|--------|-----------|
+| Per-grounding | One event per article entering context per session | Access-based or flat-fee licensing ("you used our content") |
+| Per-citation | One event per explicit reference in a response | Performance-based licensing ("you cited our content") |
+| Per-turn-influenced | One event per turn where content was in context | Usage-based licensing ("our content informed N answers") |
+
+The `content_grounded` event with `scope: session` plus the count of subsequent `turn_completed` events provides the inputs for all three models without requiring the schema to embed a commercial opinion.
+
+### 9.2 Grounding without citation
+
+Content can influence every response in a session without being explicitly cited. A common royalty formula (individual content owner usage / total content owner usage x royalty rate) can be applied at any level of the funnel:
+
+- At the **grounding** level: counts all content that was in the agent's context, regardless of citation. This captures the full extent of content influence, including silent grounding.
+- At the **citation** level: counts only explicitly attributed content. Simpler to verify but undercounts content influence.
+- At the **display** level: counts only content references shown to users. Narrowest scope, highest confidence.
+
+Content owners and platforms should agree on which level to count at. The telemetry data supports all three; the choice is commercial, not technical.
+
+## 10. Extensibility
+
+### 10.1 Custom event metadata
+
+Implementations MAY extend core event types with custom fields in the `data` object:
 
 ```json
 {
   "type": "content_engaged",
   "data": {
+    "engagement_type": "link_click",
     "custom_event_subtype": "video_watched",
     "watch_duration_seconds": 45
   }
 }
 ```
 
-### 7.2 Custom Intent Categories
+New event types (e.g., the ACP extension's `checkout_completed`) require a schema extension. The core schema validates only the event types listed in section 5.3.
 
-For intents not covered by the standard categories, use `other` and include details in `topics`:
+### 10.2 Custom intent categories
+
+`query_intent` accepts custom string values beyond the core set. Extensions SHOULD namespace their values to avoid collisions (e.g., `price_check` for ACP). For ad-hoc categories that don't warrant a formal extension, use `other` with details in `topics`.
+
+Attribution consumers MUST tolerate unknown `query_intent` values.
+
+Extension example:
+
+```json
+{
+  "query_intent": "price_check"
+}
+```
+
+Fallback example using `other`:
 
 ```json
 {
@@ -418,45 +927,55 @@ For intents not covered by the standard categories, use `other` and include deta
 }
 ```
 
-## 8. Versioning
+### 10.3 Custom response modes
 
-Schema versions follow semantic versioning principles:
-
-- **Major** (1.0 → 2.0): Breaking changes to required fields
-- **Minor** (0.1 → 0.1): New optional fields, new event types
-- **Patch** (0.1.0 → 0.1.1): Clarifications, typo fixes
-
-Consumers SHOULD accept sessions with compatible minor versions.
-
-## Appendix A: JSON Schema
-
-See `schema.json` in the repository for the formal JSON Schema definition.
-
-## Appendix B: Example Sessions
-
-### B.1 User-to-Agent Session
+`response_mode` accepts custom string values beyond the recommended set:
 
 ```json
 {
-  "schema_version": "0.4",
+  "type": "turn_completed",
+  "turn": {
+    "response_mode": "podcast_generation"
+  }
+}
+```
+
+Attribution consumers MUST tolerate unknown `response_mode` values.
+
+## 11. Versioning
+
+Preview versions (0.x) use two-component version numbers. From 1.0.0 onward, versions follow [semantic versioning](https://semver.org/):
+
+- **Major** (1.0.0 → 2.0.0) — breaking changes to required fields
+- **Minor** (1.0.0 → 1.1.0) — new optional fields, new event types
+- **Patch** (1.0.0 → 1.0.1) — clarifications
+
+Consumers SHOULD accept sessions with compatible minor versions.
+
+## Annex A (normative): JSON Schema
+
+See `telemetry-session.json` for the formal JSON Schema definition (session documents) and `telemetry-event.json` for the standalone event envelope.
+
+## Annex B (informative): Examples
+
+### B.1 User-to-agent session with grounding
+
+A user asks a shopping assistant to compare noise-cancelling headphones. The agent retrieves a review, grounds it, cites it, and the user clicks through. This demonstrates the full funnel from retrieval to engagement.
+
+```json
+{
+  "schema_version": "0.1",
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
-  "initiator_type": "user",
   "agent_id": "shopping-assistant-v2",
   "content_scope": "electronics-reviews",
   "manifest_ref": "did:aims:retailer-content-2026",
-  "prior_session_ids": ["440e8400-e29b-41d4-a716-446655440999"],
   "started_at": "2026-01-15T10:30:00Z",
   "ended_at": "2026-01-15T10:35:00Z",
-  "user_context": {
-    "external_id": "user_abc123_hash",
-    "segments": ["returning", "premium"],
-    "attributes": {}
-  },
   "events": [
     {
-      "id": "660e8400-e29b-41d4-a716-446655440001",
       "type": "turn_started",
       "timestamp": "2026-01-15T10:30:00Z",
+      "turn_id": "1",
       "turn": {
         "privacy_level": "intent",
         "query_intent": "comparison",
@@ -465,22 +984,31 @@ See `schema.json` in the repository for the formal JSON Schema definition.
       }
     },
     {
-      "id": "660e8400-e29b-41d4-a716-446655440002",
       "type": "content_retrieved",
       "timestamp": "2026-01-15T10:30:01Z",
+      "source_role": "agent",
+      "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
       "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones"
     },
     {
-      "id": "660e8400-e29b-41d4-a716-446655440003",
-      "type": "content_retrieved",
+      "type": "content_grounded",
       "timestamp": "2026-01-15T10:30:01Z",
-      "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
+      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+      "content_id": "wirecutter:best-wireless-headphones-2026",
+      "data": {
+        "scope": "session",
+        "cached": false,
+        "tokens_ingested": 4200,
+        "content_last_modified": "2026-01-10T14:00:00Z",
+        "media_type": "text"
+      }
     },
     {
-      "id": "660e8400-e29b-41d4-a716-446655440004",
       "type": "content_cited",
       "timestamp": "2026-01-15T10:30:05Z",
+      "turn_id": "1",
       "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+      "content_id": "wirecutter:best-wireless-headphones-2026",
       "data": {
         "citation_type": "paraphrase",
         "excerpt_tokens": 85,
@@ -488,174 +1016,258 @@ See `schema.json` in the repository for the formal JSON Schema definition.
       }
     },
     {
-      "id": "660e8400-e29b-41d4-a716-446655440005",
+      "type": "content_displayed",
+      "timestamp": "2026-01-15T10:30:05Z",
+      "turn_id": "1",
+      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+      "content_id": "wirecutter:best-wireless-headphones-2026",
+      "data": {
+        "display_type": "link"
+      }
+    },
+    {
       "type": "turn_completed",
       "timestamp": "2026-01-15T10:30:05Z",
+      "turn_id": "1",
       "turn": {
         "privacy_level": "intent",
         "query_intent": "comparison",
         "response_type": "recommendation",
+        "response_mode": "standard",
         "topics": ["headphones", "Sony WH-1000XM5", "Bose QC45"],
         "content_urls_retrieved": [
-          "https://www.wirecutter.com/reviews/best-wireless-headphones",
-          "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
+          "https://www.wirecutter.com/reviews/best-wireless-headphones"
         ],
         "content_urls_cited": [
           "https://www.wirecutter.com/reviews/best-wireless-headphones"
         ],
-        "response_tokens": 150,
-        "model_id": "claude-3-opus"
+        "response_tokens": 150
       }
     },
     {
-      "id": "660e8400-e29b-41d4-a716-446655440006",
-      "type": "product_viewed",
+      "type": "content_engaged",
       "timestamp": "2026-01-15T10:32:00Z",
-      "product_id": "880e8400-e29b-41d4-a716-446655440020"
-    },
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440007",
-      "type": "cart_add",
-      "timestamp": "2026-01-15T10:34:00Z",
-      "product_id": "880e8400-e29b-41d4-a716-446655440020"
-    },
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440008",
-      "type": "checkout_completed",
-      "timestamp": "2026-01-15T10:35:00Z",
-      "data": {"order_value_amount": 34999, "currency": "USD"}
+      "turn_id": "1",
+      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+      "content_id": "wirecutter:best-wireless-headphones-2026",
+      "data": {
+        "engagement_type": "link_click"
+      }
     }
-  ],
-  "outcome": {
-    "type": "conversion",
-    "value_amount": 34999,
-    "currency": "USD",
-    "products": ["880e8400-e29b-41d4-a716-446655440020"]
-  }
+  ]
 }
 ```
 
-### B.2 Agent-to-Agent Session
+### B.2 Edge-reported retrieval with correlation
 
-An orchestrator agent delegates a product research subtask to a content retrieval agent. The session links back to the user-facing session via `prior_session_ids`.
+A content owner's CDN detects an AI agent fetching content. The agent also reports the retrieval. Both events share the same `oa_telemetry_id`.
+
+**Agent's event:**
 
 ```json
 {
-  "schema_version": "0.4",
-  "session_id": "550e8400-e29b-41d4-a716-446655440100",
-  "initiator_type": "agent",
-  "initiator": {
-    "agent_id": "shopping-orchestrator-v1",
-    "manifest_ref": "did:aims:orchestrator-license",
-    "operator_id": "acme-corp"
-  },
-  "agent_id": "content-retrieval-agent-v3",
-  "content_scope": "electronics-reviews",
-  "manifest_ref": "did:aims:retailer-content-2026",
-  "prior_session_ids": ["550e8400-e29b-41d4-a716-446655440000"],
-  "started_at": "2026-01-15T10:30:01Z",
-  "ended_at": "2026-01-15T10:30:04Z",
-  "events": [
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440101",
-      "type": "turn_started",
-      "timestamp": "2026-01-15T10:30:01Z",
-      "turn": {
-        "privacy_level": "intent",
-        "query_intent": "product_research",
-        "topics": ["headphones", "noise-cancelling", "reviews"],
-        "query_tokens": 28
-      }
-    },
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440102",
-      "type": "content_retrieved",
-      "timestamp": "2026-01-15T10:30:02Z",
-      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones"
-    },
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440103",
-      "type": "content_retrieved",
-      "timestamp": "2026-01-15T10:30:02Z",
-      "content_url": "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
-    },
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440104",
-      "type": "content_cited",
-      "timestamp": "2026-01-15T10:30:03Z",
-      "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
-      "data": {
-        "citation_type": "paraphrase",
-        "excerpt_tokens": 120,
-        "position": "primary"
-      }
-    },
-    {
-      "id": "660e8400-e29b-41d4-a716-446655440105",
-      "type": "turn_completed",
-      "timestamp": "2026-01-15T10:30:04Z",
-      "turn": {
-        "privacy_level": "intent",
-        "query_intent": "product_research",
-        "response_type": "content_summary",
-        "topics": ["headphones", "Sony WH-1000XM5", "Bose QC45"],
-        "content_urls_retrieved": [
-          "https://www.wirecutter.com/reviews/best-wireless-headphones",
-          "https://www.rtings.com/headphones/reviews/best-noise-cancelling"
-        ],
-        "content_urls_cited": [
-          "https://www.wirecutter.com/reviews/best-wireless-headphones"
-        ],
-        "response_tokens": 200,
-        "model_id": "claude-3-haiku"
-      }
-    }
-  ],
-  "outcome": {
-    "type": "browse"
+  "type": "content_retrieved",
+  "timestamp": "2026-01-15T10:30:01Z",
+  "source_role": "agent",
+  "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
+  "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones"
+}
+```
+
+**Edge event** (reported by the CDN):
+
+```json
+{
+  "type": "content_retrieved",
+  "timestamp": "2026-01-15T10:30:01Z",
+  "source_role": "edge",
+  "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
+  "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
+  "data": {
+    "user_agent": "ClaudeBot/1.0",
+    "bot_category": "inference",
+    "verified": true,
+    "cache_status": "miss",
+    "response_status": 200,
+    "response_bytes": 48230,
+    "ja4": "t13d1517h2_8daaf6152771_02e4c6ae3e16",
+    "asn": 14618,
+    "asn_org": "Anthropic",
+    "country": "US",
+    "ip_hash": "sha256:d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
   }
 }
 ```
 
-## Appendix C: Changelog
+These share `oa_telemetry_id` and `content_url`, representing one corroborated retrieval from two observers.
 
-### v0.4 (2026-02)
+### B.3 Cached grounding
 
-Content URLs replace content UUIDs.
+An AI agent previously fetched a Reuters article and cached it. In a new session, the cached article is loaded into context and influences multiple turns. The user never clicks through to the source.
 
-- **Breaking:** Renamed `content_id` (UUID) to `content_url` (URI string) on `TelemetryEvent`
-- **Breaking:** Renamed `content_ids_retrieved` / `content_ids_cited` to `content_urls_retrieved` / `content_urls_cited` on `ConversationTurn`
-- Rationale: AI agents identify content by URL, not by registry UUID. URLs also enable affiliate attribution bootstrapping — any network can resolve a URL to a publisher without pre-wired mappings.
+```json
+{
+  "schema_version": "0.1",
+  "session_id": "660e8400-e29b-41d4-a716-446655440000",
+  "agent_id": "copilot-v3",
+  "started_at": "2026-03-28T09:00:00Z",
+  "ended_at": "2026-03-28T09:08:00Z",
+  "events": [
+    {
+      "type": "content_grounded",
+      "timestamp": "2026-03-28T09:00:00Z",
+      "content_url": "https://www.reuters.com/markets/abc123",
+      "content_id": "reuters:abc123",
+      "data": {
+        "scope": "session",
+        "cached": true,
+        "tokens_ingested": 3200,
+        "content_last_modified": "2026-03-27T18:30:00Z",
+        "content_hash": "sha256:a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+        "media_type": "text"
+      }
+    },
+    {
+      "type": "turn_started",
+      "timestamp": "2026-03-28T09:00:01Z",
+      "turn_id": "1",
+      "turn": {
+        "privacy_level": "intent",
+        "query_intent": "question",
+        "topics": ["UK economy", "interest rates"]
+      }
+    },
+    {
+      "type": "content_cited",
+      "timestamp": "2026-03-28T09:00:05Z",
+      "turn_id": "1",
+      "content_url": "https://www.reuters.com/markets/abc123",
+      "content_id": "reuters:abc123",
+      "data": {
+        "citation_type": "paraphrase",
+        "excerpt_tokens": 95,
+        "excerpt_chars": 412,
+        "position": "primary",
+        "url_verified": true
+      }
+    },
+    {
+      "type": "content_displayed",
+      "timestamp": "2026-03-28T09:00:05Z",
+      "turn_id": "1",
+      "content_url": "https://www.reuters.com/markets/abc123",
+      "content_id": "reuters:abc123",
+      "data": {
+        "display_type": "link"
+      }
+    },
+    {
+      "type": "turn_completed",
+      "timestamp": "2026-03-28T09:00:05Z",
+      "turn_id": "1",
+      "turn": {
+        "privacy_level": "intent",
+        "response_type": "explanation",
+        "response_mode": "standard",
+        "content_urls_cited": ["https://www.reuters.com/markets/abc123"],
+        "response_tokens": 280,
+        "ad_rendered": true
+      }
+    },
+    {
+      "type": "turn_started",
+      "timestamp": "2026-03-28T09:01:00Z",
+      "turn_id": "2",
+      "turn": {
+        "privacy_level": "intent",
+        "query_intent": "question",
+        "topics": ["Bank of England", "monetary policy"]
+      }
+    },
+    {
+      "type": "content_cited",
+      "timestamp": "2026-03-28T09:01:08Z",
+      "turn_id": "2",
+      "content_url": "https://www.reuters.com/markets/abc123",
+      "content_id": "reuters:abc123",
+      "data": {
+        "citation_type": "reference",
+        "position": "supporting"
+      }
+    },
+    {
+      "type": "turn_completed",
+      "timestamp": "2026-03-28T09:01:08Z",
+      "turn_id": "2",
+      "turn": {
+        "privacy_level": "intent",
+        "response_type": "explanation",
+        "response_mode": "standard",
+        "content_urls_cited": ["https://www.reuters.com/markets/abc123"],
+        "response_tokens": 340
+      }
+    },
+    {
+      "type": "turn_started",
+      "timestamp": "2026-03-28T09:03:00Z",
+      "turn_id": "3",
+      "turn": {
+        "privacy_level": "intent",
+        "query_intent": "question",
+        "topics": ["housing market"]
+      }
+    },
+    {
+      "type": "turn_completed",
+      "timestamp": "2026-03-28T09:03:06Z",
+      "turn_id": "3",
+      "turn": {
+        "privacy_level": "intent",
+        "response_type": "explanation",
+        "response_mode": "standard",
+        "response_tokens": 200
+      }
+    }
+  ]
+}
+```
 
-### v0.3 (2026-01)
+In this session:
 
-Agent-to-agent session support.
+- 1 article grounded from cache (no `content_retrieved` event — the CDN saw nothing)
+- 3 turns of conversation
+- 2 explicit citations (turns 1 and 2)
+- 1 display event (link shown in turn 1)
+- 0 engagement events (user did not click through to reuters.com)
+- Advertising was rendered alongside the first response
 
-- Added `initiator_type` field (`"user"` or `"agent"`, default `"user"`)
-- Added `initiator` object with `agent_id`, `manifest_ref`, `operator_id` for agent-initiated sessions
-- Added section 2.2 (Actor Types) documenting initiator/responder model
-- Added section 3.1.4 (Initiator Identity) with field definitions
-- Added agent-to-agent example session (Appendix B.2)
+The content owner can derive: article `reuters:abc123` was in context for all turns, cited twice, displayed once, never clicked. The content was 14.5 hours old (cached from previous day). The response was monetised with advertising.
 
-### v0.2 (2026-01)
+### B.4 Minimal privacy level
 
-Cross-session attribution and content scope abstraction.
+The same turn from B.3 at `minimal` privacy. No intent, no topics, no platform metadata — only token counts and content URLs.
 
-- **Breaking:** Renamed `mix_id` to `content_scope` (now optional)
-- Added `manifest_ref` for AIMS integration
-- Added `prior_session_ids` for cross-session journey attribution
-- Added citation quality signals (`citation_type`, `excerpt_tokens`, `position`, `content_hash`)
-- Added `contradiction` citation type for negative attribution
-- Documentation for content scope patterns and AIMS integration
+```json
+{
+  "type": "turn_completed",
+  "timestamp": "2026-03-28T09:00:05Z",
+  "turn_id": "1",
+  "turn": {
+    "privacy_level": "minimal",
+    "content_urls_cited": ["https://www.reuters.com/markets/abc123"],
+    "response_tokens": 280
+  }
+}
+```
 
-### v0.1 (2026-01)
+Compare with the `intent` version in B.3: `query_intent`, `topics`, `response_type`, `response_mode`, and `ad_rendered` are all absent.
 
-Initial preview release.
+## Bibliography
 
-- Core session and event model
-- Content lifecycle events (retrieved, displayed, engaged, cited)
-- Conversation events (`turn_started`, `turn_completed`)
-- Commerce events (cart, checkout)
-- `ConversationTurn` model with privacy levels
-- `IntentCategory` for standardized intent classification
-- `SessionOutcome` for attribution calculation
+The following documents are referenced for information purposes.
+
+- [ISCC] International Standard Content Code (ISO 24138), https://www.iso.org/standard/88469.html
+- [C2PA] Coalition for Content Provenance and Authenticity, https://c2pa.org/
+- [Semantic Versioning] Semantic Versioning 2.0.0, https://semver.org/
+- [AIMS] Agent Identity and Manifest Specification, https://github.com/openattribution-org/aims
+- [CONSIDERATIONS] OpenAttribution Telemetry — Future considerations, ./CONSIDERATIONS.md

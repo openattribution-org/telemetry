@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openattribution.org/telemetry/ucp/schemas/extension.json",
-  "$comment": "UCP binding of OpenAttribution Telemetry v0.4. Canonical specification: https://openattribution.org/telemetry",
+  "$comment": "UCP binding of OpenAttribution Telemetry v0.1. Canonical specification: https://openattribution.org/telemetry",
   "name": "org.openattribution.telemetry",
   "title": "OpenAttribution Telemetry Extension for UCP",
   "description": "UCP extension for content attribution telemetry. Extends dev.ucp.shopping.checkout to track which content influenced commerce outcomes.",

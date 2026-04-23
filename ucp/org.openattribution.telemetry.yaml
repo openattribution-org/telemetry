@@ -231,7 +231,7 @@ mcp_tools:
           $ref: "#/schemas/SessionOutcome"
 
 # ------------------------------------------------------------------------------
-# Schemas (aligned with OpenAttribution Specification v0.4)
+# Schemas (aligned with OpenAttribution Specification v0.1)
 # ------------------------------------------------------------------------------
 
 schemas:
@@ -355,15 +355,9 @@ schemas:
           # Conversation events
           - turn_started
           - turn_completed
-          # Commerce events
-          - product_viewed
-          - product_compared
-          - cart_add
-          - cart_remove
-          - checkout_started
+          # Outcome events
           - checkout_completed
-          - checkout_abandoned
-        description: Event type per OpenAttribution Specification v0.4
+        description: Event type per OpenAttribution Specification v0.1
 
       timestamp:
         type: string

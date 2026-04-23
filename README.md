@@ -1,334 +1,332 @@
 # OpenAttribution Telemetry
 
-[![PyPI version](https://badge.fury.io/py/openattribution-telemetry.svg)](https://badge.fury.io/py/openattribution-telemetry)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+**Open signal format for content use in AI systems.**
 
-**Open signal format for AI content attribution. Track what content influenced outcomes.**
+When an AI agent uses content to generate a response, five things can happen - and today the content owner can only see one of them. OpenAttribution Telemetry defines a schema for tracking all five, across any content type and any kind of agent.
 
-Part of the [OpenAttribution](https://openattribution.org) project.
+This is a preview specification. Field names, event types, and schema structure may change before 1.0.
 
-## What is OpenAttribution?
+Part of the [OpenAttribution](https://openattribution.org) project. See also [AIMS](https://github.com/openattribution-org/aims) for agent identity and licensing.
 
-OpenAttribution defines a **schema** for content attribution signals in AI agent interactions. It specifies the shape of the data, not how you move it. Your implementation chooses the transport: HTTP postback, SSE via MCP tool calls, message queues, direct database writes, whatever fits.
+## What is OpenAttribution Telemetry
 
-This repo contains:
-- **Schema** (Pydantic models + TypeScript types) for sessions, events, outcomes, and privacy levels
-- **Python SDK** (`openattribution-telemetry`) for emitting signals over HTTP
-- **TypeScript/JavaScript SDK** (`@openattribution/telemetry`) for Node.js, Deno, browsers, and Edge runtimes
-- **Reference server** (FastAPI + PostgreSQL) for receiving and storing them
-- **Commerce protocol integrations** for [UCP](https://ucp.dev) and [ACP](https://www.agenticcommerce.dev/)
+OpenAttribution Telemetry is a vendor-neutral framework for capturing how content flows through AI systems. It standardises the signals emitted when an agent retrieves, uses, references, or surfaces content - regardless of:
 
-See [SPECIFICATION.md](./SPECIFICATION.md) for the full protocol spec and [schema.json](./schema.json) for cross-language implementations.
+- **Content type.** Articles, products, videos, audio, code, documentation, research, datasets, social posts, reviews.
+- **Agent.** Conversational assistants, search engines, commerce agents, research tools, recommendation systems, summarisers, coding copilots.
+- **Deployment.** Browser-embedded, app-integrated, API-accessed, on-device, server-side.
+- **Industry.** Publishing, commerce, education, media, software, science, enterprise knowledge.
 
-## Installation
+The protocol is Apache 2.0 licensed and designed for multi-observer reporting - the same event can be reported independently by the content owner's infrastructure, the agent, and intermediaries, then correlated by attribution consumers.
 
-**Python:**
+## The problem
 
-```bash
-pip install openattribution-telemetry
-# or: uv add openattribution-telemetry
-```
+AI agents retrieve content, use it to generate responses, and sometimes cite it. Content owners currently see one signal: HTTP requests hitting their servers. Everything after that - whether the content actually influenced the response, whether it was cited, whether a user saw the citation, whether they clicked through - is invisible.
 
-**TypeScript/JavaScript:**
+Platforms self-report usage metrics (if they report at all), and content owners have no way to verify the numbers or compare across platforms.
 
-```bash
-npm install @openattribution/telemetry
-# or: pnpm add @openattribution/telemetry
-```
+## The five stages
 
-The TypeScript SDK works in Node.js ≥18, Deno, browsers, and Edge runtimes (Vercel, Cloudflare Workers). Zero runtime dependencies. See [`ts/README.md`](./ts/README.md) for full documentation.
-
-## Quick Start (Python SDK)
-
-```python
-import asyncio
-from uuid import uuid4
-
-from openattribution.telemetry import (
-    Client,
-    ConversationTurn,
-    SessionOutcome,
-    UserContext,
-)
-
-async def main():
-    async with Client(
-        endpoint="https://api.example.com/telemetry",
-        api_key="your-api-key"
-    ) as client:
-
-        # Start a session
-        session_id = await client.start_session(
-            content_scope="my-content-mix",
-            user_context=UserContext(segments=["premium"])
-        )
-
-        # Record content retrieval
-        content_url = "https://www.wirecutter.com/reviews/best-wireless-headphones"
-        await client.record_event(
-            session_id=session_id,
-            event_type="content_retrieved",
-            content_url=content_url,
-        )
-
-        # Record a conversation turn with privacy controls
-        await client.record_event(
-            session_id=session_id,
-            event_type="turn_completed",
-            turn=ConversationTurn(
-                privacy_level="intent",
-                query_intent="product_research",
-                response_type="recommendation",
-                topics=["headphones", "wireless"],
-                content_urls_cited=[content_url],
-                response_tokens=150,
-            )
-        )
-
-        # End session with outcome
-        await client.end_session(
-            session_id=session_id,
-            outcome=SessionOutcome(
-                type="conversion",
-                value_amount=9999,  # $99.99 in cents
-                currency="USD",
-            )
-        )
-
-asyncio.run(main())
-```
-
-### Bulk Upload
-
-If your agent collects telemetry locally and uploads after the session ends, use `upload_session` to send everything in one request:
-
-```python
-from datetime import UTC, datetime
-from uuid import uuid4
-
-from openattribution.telemetry import (
-    Client,
-    SessionOutcome,
-    TelemetryEvent,
-    TelemetrySession,
-)
-
-session = TelemetrySession(
-    session_id=uuid4(),
-    initiator_type="agent",
-    agent_id="my-agent",
-    content_scope="my-content-mix",
-    started_at=datetime.now(UTC),
-    events=[
-        TelemetryEvent(
-            id=uuid4(),
-            type="content_retrieved",
-            timestamp=datetime.now(UTC),
-            content_url="https://www.rtings.com/headphones/reviews/best-noise-cancelling",
-        ),
-    ],
-    outcome=SessionOutcome(type="conversion", value_amount=9999),
-)
-
-async with Client(endpoint="https://api.example.com/telemetry", api_key="key") as client:
-    server_session_id = await client.upload_session(session)
-```
-
-The server generates its own session ID and stores the caller's `session_id` as `external_session_id`.
-
-## Quick Start (TypeScript SDK)
-
-```ts
-import { TelemetryClient, MCPSessionTracker, createTrackingUrl } from "@openattribution/telemetry";
-
-const client = new TelemetryClient({
-  endpoint: "https://your-telemetry-server.com",
-  apiKey: process.env.TELEMETRY_API_KEY,
-  failSilently: true,
-});
-
-// MCPSessionTracker maintains session continuity across stateless MCP tool calls
-const tracker = new MCPSessionTracker(client, "my-shopping-agent");
-
-// Track the full attribution funnel
-await tracker.trackRetrieved(sessionId, productUrls);       // content shown
-await tracker.trackCited(sessionId, recommendedUrls);       // content recommended
-await tracker.trackEngaged(sessionId, [clickedUrl], {       // user clicked
-  interactionType: "click",
-});
-await tracker.trackCheckout(sessionId, {                    // purchase completed
-  type: "completed",
-  valueAmount: 4999,   // $49.99 in minor units
-  currency: "USD",
-});
-
-// Build tracked redirect URLs for reliable click attribution
-const trackedUrl = createTrackingUrl("https://shop.example.com/product", {
-  endpoint: "https://myagent.com/api/track",
-  sessionId,
-});
-```
-
-See [`ts/README.md`](./ts/README.md) for MCP integration, Next.js examples, and the ACP/UCP checkout bridges.
-
-## Session Model
-
-A **session** tracks one interaction between a user (or agent) and an AI agent:
+OpenAttribution tracks content through five stages:
 
 ```
-Session
-├── started_at
-├── content_scope (opaque content collection identifier)
-├── manifest_ref (optional [AIMS](https://github.com/openattribution-org/aims) licence reference)
-├── prior_session_ids (for multi-session journeys)
-├── user_context (segments, attributes)
-├── events[]
-│   ├── content_retrieved
-│   ├── content_cited
-│   ├── turn_completed
-│   └── ...
-├── ended_at
-└── outcome (conversion / abandonment / browse)
+Retrieved    →  content fetched over HTTP (content owner can see this today)
+  Grounded   →  content loaded into the agent's generation context
+    Cited    →  content explicitly referenced in the response
+      Displayed  →  user saw the reference
+        Engaged  →  user clicked, expanded, copied, or shared
 ```
 
-## Event Types
+Each stage is a progressively narrower subset. What ties them together is the **session** - a single user journey from query to outcome, identified by a session ID. The session ID is what travels from the agent to the landing page when a user clicks through. It is the thread that connects content to outcome.
 
-**Content Events** track the content lifecycle:
+The gaps between stages are where the interesting questions live:
 
-| Event | Description |
-|-------|-------------|
-| `content_retrieved` | Content fetched from source |
-| `content_displayed` | Content shown to user |
-| `content_engaged` | User interacted with content |
-| `content_cited` | Content referenced in response |
+- **Retrieval without grounding** - your content was fetched but not used
+- **Grounding without citation** - your content influenced the answer but you got no credit
+- **Citation without engagement** - your content was cited but the user didn't click through
 
-**Conversation Events** capture agent interactions:
+The grounding event captures the boundary "this content entered the agent's generation context." It is architecture-neutral and decoupled from retrieval: content cached by the agent for days still produces a grounding event in every session it influences, even when the content owner's infrastructure sees nothing.
 
-| Event | Description |
-|-------|-------------|
-| `turn_started` | User initiated a conversation turn |
-| `turn_completed` | Agent finished responding |
+## Design principles
 
-**Commerce Events** enable purchase attribution:
+**Post-hoc, not pre-declared.** Events report what actually happened, not what the agent said it would do at request time. An agent cannot reliably declare how it will use content before reading it. Telemetry captures observed reality after the fact.
 
-| Event | Description |
-|-------|-------------|
-| `product_viewed` | Product page viewed |
-| `product_compared` | Products compared |
-| `cart_add` / `cart_remove` | Cart modifications |
-| `checkout_started` | Checkout initiated |
-| `checkout_completed` | Purchase completed |
-| `checkout_abandoned` | Checkout abandoned |
+**Observable boundaries, not agent internals.** The five event types mark boundary crossings. What happens between them - the fan-out, relevance evaluation, re-ranking, reasoning chains - is internal to the agent and changes constantly. The spec does not model it.
 
-## Privacy Levels
+**Multiple observers, one event.** A content retrieval can be reported by the content owner's CDN, the content owner's origin server, and the AI agent independently. The `OA-Telemetry-ID` header correlates these into a single corroborated event. Uncorroborated retrievals (no matching agent event) may indicate an agent that does not yet support the telemetry protocol.
 
-Control what conversation data is shared based on trust relationships:
+**Privacy by default.** Four privacy levels control what conversation data is shared: from `full` (query and response text) down to `minimal` (token counts and content URLs only).
 
-| Level | Query/Response Text | Intent | Topics | Tokens | Content URLs |
-|-------|---------------------|--------|--------|--------|-------------|
-| `full` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `summary` | Summarized | ✓ | ✓ | ✓ | ✓ |
-| `intent` | ✗ | ✓ | ✓ | ✓ | ✓ |
-| `minimal` | ✗ | ✗ | ✗ | ✓ | ✓ |
+## What's in this repo
 
-## Transport
+- [SPECIFICATION.md](./SPECIFICATION.md) - the full protocol specification
+- [telemetry-session.json](./telemetry-session.json) - JSON Schema for session documents
+- [telemetry-event.json](./telemetry-event.json) - JSON Schema for standalone event envelopes
+- [CONSIDERATIONS.md](./CONSIDERATIONS.md) - deferred items under consideration for future versions
+- Adoption guides for content owners, platforms, marketplaces, and regulators live on [openattribution.org](https://openattribution.org)
+- [acp/](./acp/) - Agentic Commerce Protocol content attribution extension
+- [ucp/](./ucp/) - Universal Commerce Protocol checkout attribution extension
 
-OpenAttribution is transport-agnostic. The schema defines the signal shape; you pick how to deliver it.
+## Quick example
 
-| Pattern | When to use |
-|---------|-------------|
-| **HTTP postback** | Agent fires events to a telemetry endpoint during or after a session. The SDK client and reference server implement this. |
-| **Bulk upload** | Agent collects signals locally, uploads a complete session after it ends. Good for batch pipelines or offline agents. |
-| **MCP tool** | Agent exposes an MCP tool that records attribution inline during conversation turns. Works well with SSE-based MCP transports. |
-| **Message queue** | High-throughput systems publish signals to Kafka, SQS, etc. Consumer writes to storage. |
-| **Direct DB write** | Co-located systems skip HTTP and write session rows directly. |
+A user asks an AI agent about UK interest rates. The agent grounds its response in a cached Reuters article, cites it, and shows a link. The user reads the answer and leaves without clicking through.
 
-### MCP Tool Example
-
-Wrap the SDK client in an MCP tool so the agent records attribution as part of its normal tool-use flow:
-
-```python
-@server.tool()
-async def record_attribution(
-    content_urls: list[str],
-    query_intent: str,
-    response_type: str,
-) -> str:
-    """Record content attribution for this conversation turn."""
-    await client.record_event(
-        session_id=current_session_id,
-        event_type="turn_completed",
-        turn=ConversationTurn(
-            privacy_level="intent",
-            query_intent=query_intent,
-            response_type=response_type,
-            content_urls_cited=content_urls,
-        )
-    )
-    return "Attribution recorded"
+```json
+{
+  "document_type": "session",
+  "schema_version": "0.1",
+  "session_id": "660e8400-e29b-41d4-a716-446655440000",
+  "agent_id": "copilot-v3",
+  "started_at": "2026-03-28T09:00:00Z",
+  "events": [
+    {
+      "type": "content_grounded",
+      "timestamp": "2026-03-28T09:00:00Z",
+      "content_url": "https://www.reuters.com/article/abc123",
+      "content_id": "reuters:abc123",
+      "data": {
+        "scope": "session",
+        "cached": true,
+        "tokens_ingested": 3200,
+        "content_last_modified": "2026-03-27T18:30:00Z"
+      }
+    },
+    {
+      "type": "turn_started",
+      "timestamp": "2026-03-28T09:00:01Z",
+      "turn_id": "1",
+      "turn": {
+        "privacy_level": "intent",
+        "query_intent": "question",
+        "topics": ["UK economy", "interest rates"]
+      }
+    },
+    {
+      "type": "content_cited",
+      "timestamp": "2026-03-28T09:00:05Z",
+      "turn_id": "1",
+      "content_url": "https://www.reuters.com/article/abc123",
+      "content_id": "reuters:abc123",
+      "data": {
+        "citation_type": "paraphrase",
+        "position": "primary"
+      }
+    },
+    {
+      "type": "content_displayed",
+      "timestamp": "2026-03-28T09:00:05Z",
+      "turn_id": "1",
+      "content_url": "https://www.reuters.com/article/abc123",
+      "content_id": "reuters:abc123",
+      "data": { "display_type": "link" }
+    },
+    {
+      "type": "turn_completed",
+      "timestamp": "2026-03-28T09:00:05Z",
+      "turn_id": "1",
+      "turn": {
+        "privacy_level": "intent",
+        "response_mode": "standard",
+        "response_tokens": 280,
+        "ad_rendered": true
+      }
+    }
+  ]
+}
 ```
 
-## Reference Server
+No `content_retrieved` event - the article was cached from a previous fetch. The content owner's infrastructure saw nothing. The grounding event is the only signal that content was used.
 
-A working server implementation lives in [`server/`](./server/):
+The content owner can derive: Reuters article `abc123` was in context for the response, cited as a paraphrase, link was displayed, user never clicked, ads were shown alongside.
 
-```bash
-pip install openattribution-telemetry-server
+## Event type reference
+
+Seven event types. The first five track content through the attribution funnel. The last two bracket conversation turns.
+
+### `content_retrieved`
+
+Content fetched over HTTP. The only stage content owners can observe today (via server logs or CDN). Multiple observers (edge, origin, agent) can report the same retrieval - the `oa_telemetry_id` header correlates them.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_role` | string | Who reported: `origin`, `edge`, `index`, `agent` |
+| `oa_telemetry_id` | uuid | Correlation ID from the `OA-Telemetry-ID` HTTP header |
+| `content_url` | uri | URL as fetched |
+| `content_id` | string | Stable content identifier (CMS ID, DOI, ISBN) |
+| `data.media_type` | string | `text`, `image`, `video`, `audio` |
+| `data.user_agent` | string | Request User-Agent header (edge/origin) |
+| `data.bot_category` | string | `training`, `inference`, `search` (edge) |
+| `data.verified` | boolean | Bot identity cryptographically verified (edge) |
+| `data.cache_status` | string | `hit`, `miss`, `bypass`, `dynamic` (edge) |
+| `data.response_status` | integer | HTTP response status code |
+| `data.response_bytes` | integer | Response body size in bytes (edge) |
+| `data.ja4` | string | JA4 TLS client fingerprint (edge) |
+| `data.asn` | integer | Client AS number (edge) |
+| `data.asn_org` | string | Client AS organisation name (edge) |
+| `data.country` | string | ISO 3166-1 alpha-2 country code (edge) |
+| `data.ip_hash` | string | SHA-256 of client IP (edge/origin) |
+
+### `content_grounded`
+
+Content loaded into the generation model's context. This is the boundary where content can directly influence the response. Cached content that was fetched days ago still produces a grounding event in every session it influences.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `content_url` | uri | Content URL |
+| `content_id` | string | Stable content identifier |
+| `data.scope` | string | `session` (all subsequent turns) or `turn` (this turn only) |
+| `data.cached` | boolean | Served from agent-side cache, not a live fetch |
+| `data.tokens_ingested` | integer | Tokens placed in generation context |
+| `data.content_version` | string | ETag, revision ID, or CMS version |
+| `data.content_last_modified` | datetime | When source content was last modified |
+| `data.content_hash` | string | SHA-256 of content as ingested (`sha256:{hex}`) |
+| `data.media_type` | string | `text`, `image`, `video`, `audio` |
+
+### `content_cited`
+
+Content explicitly referenced in the agent's response.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `content_url` | uri | Cited content URL |
+| `content_id` | string | Stable content identifier |
+| `data.citation_type` | string | `direct_quote`, `paraphrase`, `reference`, `contradiction`, `unclassified` |
+| `data.position` | string | Prominence: `primary`, `supporting`, `mentioned`, `unclassified` |
+| `data.excerpt_tokens` | integer | Token count of excerpt used |
+| `data.excerpt_chars` | integer | Character count of excerpt used |
+| `data.media_type` | string | `text`, `image`, `video`, `audio` |
+| `data.content_hash` | string | SHA-256 matching the grounding event |
+| `data.url_verified` | boolean | Agent confirmed URL resolves to matching content |
+
+### `content_displayed`
+
+User saw the content reference in the response.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `content_url` | uri | Displayed content URL |
+| `content_id` | string | Stable content identifier |
+| `data.display_type` | string | `link`, `snippet`, `inline_quote`, `card`, `detail_view` |
+
+### `content_engaged`
+
+User interacted with the content reference.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `content_url` | uri | Engaged content URL |
+| `content_id` | string | Stable content identifier |
+| `data.engagement_type` | string | `link_click`, `expand`, `copy`, `share` |
+
+### `turn_started` / `turn_completed`
+
+Bracket a conversation turn. Carry conversation context at one of four privacy levels.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `turn_id` | string | Turn identifier, scoped to the session |
+| `turn.privacy_level` | string | `full`, `summary`, `intent`, `minimal` |
+| `turn.query_text` | string | User query (full/summary only) |
+| `turn.response_text` | string | Agent response (full/summary only) |
+| `turn.query_intent` | string | Classified intent: `question`, `comparison`, `how_to`, `purchase_intent`, etc. |
+| `turn.response_mode` | string | `standard`, `deep_research`, `search`, `code_generation` |
+| `turn.topics` | array | Detected topics/entities |
+| `turn.query_tokens` | integer | Query token count |
+| `turn.response_tokens` | integer | Response token count |
+| `turn.model_id` | string | Model identifier (e.g. `claude-4-sonnet`) |
+| `turn.ad_rendered` | boolean | Whether ads were shown alongside the response |
+
+## What the data looks like
+
+The JSON session format is the wire format. But what consumers actually care about is a flat view they can query, export, or pipe into a dashboard. Here's what the same session from the quick example above looks like flattened.
+
+### Flat event log
+
+Each event becomes one row. Common fields (`session_id`, `agent_id`, `timestamp`, `type`) are the same across all rows; type-specific fields fill their columns and the rest are null.
+
+```
+session_id                            | agent_id   | timestamp            | type              | turn_id | content_url                          | content_id | source_role | citation_type | position  | display_type | engagement_type | scope   | cached | tokens_ingested | privacy_level | response_tokens | ad_rendered
+--------------------------------------|------------|----------------------|-------------------|---------|--------------------------------------|------------|-------------|---------------|-----------|--------------|-----------------|---------|--------|-----------------|---------------|-----------------|------------
+660e8400-e29b-41d4-a716-446655440000  | copilot-v3 | 2026-03-28T09:00:00Z | content_grounded  |         | https://www.reuters.com/article/abc123    | reuters:abc123  |             |               |           |              |                 | session | true   | 3200            |               |                 |
+660e8400-e29b-41d4-a716-446655440000  | copilot-v3 | 2026-03-28T09:00:01Z | turn_started      | 1       |                                      |            |             |               |           |              |                 |         |        |                 | intent        |                 |
+660e8400-e29b-41d4-a716-446655440000  | copilot-v3 | 2026-03-28T09:00:05Z | content_cited     | 1       | https://www.reuters.com/article/abc123    | reuters:abc123  |             | paraphrase    | primary   |              |                 |         |        |                 |               |                 |
+660e8400-e29b-41d4-a716-446655440000  | copilot-v3 | 2026-03-28T09:00:05Z | content_displayed | 1       | https://www.reuters.com/article/abc123    | reuters:abc123  |             |               |           | link         |                 |         |        |                 |               |                 |
+660e8400-e29b-41d4-a716-446655440000  | copilot-v3 | 2026-03-28T09:00:05Z | turn_completed    | 1       |                                      |            |             |               |           |              |                 |         |        |                 | intent        | 280             | true
 ```
 
-It provides:
-- REST API matching the SDK client (`/session/start`, `/events`, `/session/end`)
-- Bulk session upload (`POST /session/bulk`) for post-hoc reporting
-- Internal query endpoints for attribution systems
-- PostgreSQL storage
+### CSV export
 
-See [`server/README.md`](./server/README.md) for setup and deployment.
+The same data in CSV - what you'd export for a spreadsheet or BI tool:
 
-## UCP Integration
-
-OpenAttribution integrates with the [Universal Commerce Protocol](https://ucp.dev) for standardised AI commerce attribution. Two approaches are available:
-
-| Approach | Use Case |
-|----------|----------|
-| **Checkout extension** | Embed attribution in UCP checkout sessions |
-| **Standalone capability** | Independent endpoints for full session lifecycle |
-
-The SDK includes a bridge to convert telemetry sessions into UCP checkout attribution objects:
-
-```python
-from openattribution.telemetry import session_to_attribution
-
-attribution = session_to_attribution(telemetry_session)
-# Embed in UCP checkout payload
+```csv
+session_id,agent_id,timestamp,type,turn_id,content_url,content_id,source_role,citation_type,position,display_type,engagement_type,scope,cached,tokens_ingested,privacy_level,response_tokens,ad_rendered
+660e8400-e29b-41d4-a716-446655440000,copilot-v3,2026-03-28T09:00:00Z,content_grounded,,https://www.reuters.com/article/abc123,reuters:abc123,,,,,session,true,3200,,,
+660e8400-e29b-41d4-a716-446655440000,copilot-v3,2026-03-28T09:00:01Z,turn_started,1,,,,,,,,,,,intent,,
+660e8400-e29b-41d4-a716-446655440000,copilot-v3,2026-03-28T09:00:05Z,content_cited,1,https://www.reuters.com/article/abc123,reuters:abc123,,paraphrase,primary,,,,,,,,
+660e8400-e29b-41d4-a716-446655440000,copilot-v3,2026-03-28T09:00:05Z,content_displayed,1,https://www.reuters.com/article/abc123,reuters:abc123,,,,link,,,,,,,
+660e8400-e29b-41d4-a716-446655440000,copilot-v3,2026-03-28T09:00:05Z,turn_completed,1,,,,,,,,,,,intent,280,true
 ```
 
-See [`ucp/README.md`](./ucp/README.md) for specifications and integration examples.
+### Richer example - deep research session with clickthrough
 
-## ACP Integration
+A user asks an AI agent to compare mortgage rates. The agent does a deep research pass, retrieves three sources, grounds two, cites both, and the user clicks through to one.
 
-OpenAttribution integrates with the [Agentic Commerce Protocol](https://www.agenticcommerce.dev/) via a content attribution extension that complements ACP's existing `affiliate_attribution`.
-
-The SDK includes a bridge to convert telemetry sessions into ACP content attribution objects:
-
-```python
-from openattribution.telemetry import session_to_content_attribution
-
-content_attribution = session_to_content_attribution(telemetry_session)
-# Include in ACP checkout request
+```csv
+session_id,agent_id,timestamp,type,turn_id,content_url,content_id,source_role,citation_type,position,display_type,engagement_type,scope,cached,tokens_ingested,privacy_level,response_tokens,ad_rendered
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:00Z,content_retrieved,,https://www.bankofengland.co.uk/monetary-policy/12345,boe:12345,agent,,,,,,false,,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:00Z,content_retrieved,,https://www.reuters.com/markets/def456,reuters:def456,agent,,,,,,false,,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:00Z,content_retrieved,,https://www.bloomberg.com/news/ghi789,bloomberg:ghi789,agent,,,,,,false,,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:01Z,content_grounded,,https://www.bankofengland.co.uk/monetary-policy/12345,boe:12345,,,,,turn,false,2100,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:01Z,content_grounded,,https://www.reuters.com/markets/def456,reuters:def456,,,,,turn,false,4500,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:01Z,turn_started,1,,,,,,,,,,,,intent,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:10Z,content_cited,1,https://www.reuters.com/markets/def456,reuters:def456,,direct_quote,primary,,,,,,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:10Z,content_cited,1,https://www.bankofengland.co.uk/monetary-policy/12345,boe:12345,,paraphrase,supporting,,,,,,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:10Z,content_displayed,1,https://www.reuters.com/markets/def456,reuters:def456,,,,card,,,,,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:10Z,content_displayed,1,https://www.bankofengland.co.uk/monetary-policy/12345,boe:12345,,,,link,,,,,,,
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:10Z,turn_completed,1,,,,,,,,,,,,intent,850,true
+aa1e8400-e29b-41d4-a716-446655440000,search-agent,2026-03-28T14:00:15Z,content_engaged,1,https://www.reuters.com/markets/def456,reuters:def456,,,,,,link_click,,,,,,
 ```
 
-See [`acp/README.md`](./acp/README.md) for the RFC, schema, and examples.
+What a content owner can read from this:
 
-## Get Involved
+- Three sources retrieved, but the Bloomberg article (`ghi789`) was never grounded - fetched but not used
+- Reuters article was the primary source (direct quote, shown as a card), Bank of England page was supporting (paraphrase, shown as a link)
+- User clicked through to the Reuters article but not the Bank of England one
+- 850 response tokens, ads were shown, privacy level is `intent` (no query/response text shared)
 
-OpenAttribution is a community effort. We welcome:
+## Relationship to other protocols
+
+OpenAttribution Telemetry is the **reporting** side. Content **access** protocols (peek-then-pay, IAB CoMP, bilateral APIs) govern how agents discover and license content. The `license_ref` field on events connects telemetry to whatever access protocol issued the licence. The schemas are independent - telemetry works with any access protocol, or none.
+
+## Implementations
+
+| Language | Package | Repo |
+|----------|---------|------|
+| Python | `openattribution-telemetry` | [telemetry-py](https://github.com/openattribution-org/telemetry-py) |
+| TypeScript | `@openattribution/telemetry` | [telemetry-js](https://github.com/openattribution-org/telemetry-js) |
+
+## Open questions in v0.1
+
+This is a preview specification. Two areas are under active discussion and will be refined with implementer input:
+
+**Grounding boundary.** The spec defines grounding as content entering the generation model's context (section 4.2, 6.4). For straightforward RAG pipelines this is clear. For pipelines with multiple processing stages - embedding, re-ranking, summarisation before context insertion - the boundary requires judgement. The spec draws the line at the generation context (not earlier retrieval stages), but edge cases remain. See [CONSIDERATIONS.md](./CONSIDERATIONS.md#grounding-boundary-definition) for the full discussion. Input from platform engineering teams building real implementations will sharpen this definition.
+
+**Event volume at scale.** A single deep-research query can produce 100+ retrieval events and dozens of grounding/citation events. The session document format already handles transport - one POST with all events after the session ends, not one request per event. Volume management beyond that (storage, processing, consumer-side aggregation) is an implementation concern, not a protocol gap. Sampling and aggregation are options for future versions but are deliberately not in v0.1 - what gets reported and at what granularity is a commercial decision between the parties, not a protocol default. See [CONSIDERATIONS.md](./CONSIDERATIONS.md#event-volume-and-scale-guidance) for options under consideration.
+
+## Versioning
+
+This repo tracks the specification version. SDK repos have their own release cadences and declare which spec version they support.
+
+Current spec version: **0.1** (preview)
+
+## Get involved
 
 - **Feedback** via [GitHub Issues](https://github.com/openattribution-org/telemetry/issues)
-- **Implementations** in other languages
+- **Implementations** in other languages welcome
 - **Use cases** we haven't considered
 
 Visit [openattribution.org](https://openattribution.org) for more information.
 
-## License
+## Licence
 
 Apache 2.0 - see [LICENSE](./LICENSE) for details.

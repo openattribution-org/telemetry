@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://agentic-commerce-protocol.com/schemas/content_attribution.json",
-  "$comment": "ACP binding of OpenAttribution Telemetry v0.4. Canonical specification: https://openattribution.org/telemetry",
+  "$comment": "ACP binding of OpenAttribution Telemetry v0.1. Canonical specification: https://openattribution.org/telemetry",
   "title": "Content Attribution Extension for ACP",
   "description": "Content citation attribution data for ACP checkout sessions.",
   "type": "object",

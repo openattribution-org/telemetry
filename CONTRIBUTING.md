@@ -1,69 +1,49 @@
-# Contributing to OpenAttribution Telemetry
+# Contributing to the OpenAttribution Telemetry specification
 
-Thank you for your interest in contributing. OpenAttribution is an open-source schema and SDK for AI content attribution, licensed under Apache 2.0.
+## What belongs here
 
-## Development Setup
+This repo contains the **specification** - the data model, event types, privacy levels, conformance levels, and transport guidance. It does not contain SDK or server code.
 
-```bash
-# Clone the repository
-git clone https://github.com/openattribution-org/telemetry.git
-cd telemetry
+| File | Purpose |
+|------|---------|
+| [SPECIFICATION.md](./SPECIFICATION.md) | The normative specification |
+| [telemetry-session.json](./telemetry-session.json) | JSON Schema for validation |
+| [CONSIDERATIONS.md](./CONSIDERATIONS.md) | Deferred items under consideration for future versions |
+| [tests/](./tests/) | Conformance test suite |
+| [acp/](./acp/) | Agentic Commerce Protocol extension |
+| [ucp/](./ucp/) | Universal Commerce Protocol extension |
 
-# Install with dev dependencies
-pip install -e ".[dev]"
+For SDK contributions, see:
+- Python: [openattribution-org/telemetry-py](https://github.com/openattribution-org/telemetry-py)
+- TypeScript: [openattribution-org/telemetry-js](https://github.com/openattribution-org/telemetry-js)
 
-# Or with uv
-uv sync
-```
+## Proposing changes
 
-## Running Tests
+Schema changes affect all implementations. Before submitting a PR:
 
-```bash
-pytest                       # All tests
-pytest tests/test_client.py  # Specific file
-pytest -v                    # Verbose output
-```
+1. Open an issue describing the change and its motivation
+2. Reference the relevant section of SPECIFICATION.md
+3. Consider backwards compatibility - can existing consumers ignore new fields?
+4. Update both SPECIFICATION.md and telemetry-session.json
+5. Update extension schemas in `acp/` or `ucp/` if applicable
+6. Add or update test cases in `tests/` for any new fields or conformance rules
+7. Run `python tests/validate.py` to verify all tests pass
 
-Tests use `pytest-asyncio` for async client tests.
+## Conformance levels
 
-## Code Style
+The spec defines three conformance levels: **Retrieval**, **Grounding**, and **Attribution** (section 5.7). When proposing new required fields, specify which conformance level they apply to. New optional fields do not require a conformance level change.
 
-We use [Ruff](https://docs.astral.sh/ruff/) for linting and formatting:
+## Future considerations
 
-```bash
-ruff check --fix .
-ruff format .
-```
+Items deferred from v0.1 are documented in [CONSIDERATIONS.md](./CONSIDERATIONS.md). If you want to champion one of these items for a future version, open an issue referencing the relevant section and describe the implementation experience or market conditions that justify inclusion.
 
-Key conventions:
-- **Type hints everywhere**
-- **Pydantic v2 patterns** (use `model_validator`, not `root_validator`)
-- **Async by default** for I/O operations
+## Conventions
+
 - **British English** in documentation
-
-## What to Contribute
-
-- **Bug fixes** and test improvements
-- **Implementations in other languages** (the JSON Schema in `schema.json` is the cross-language reference)
-- **UCP integration feedback** (see `ucp/` for specs)
-- **Use cases** we haven't considered
-
-## Schema Changes
-
-If your change affects the data model:
-
-1. Update `src/openattribution/telemetry/schema.py` (Pydantic models)
-2. Update `SPECIFICATION.md` to match
-3. Regenerate `schema.json` from the Pydantic models
-4. Update UCP schemas in `ucp/` if applicable
-5. Add or update tests
-
-## Submitting Changes
-
-1. Fork the repository and create a branch from `main`
-2. Make your changes with tests
-3. Ensure `pytest` and `ruff check` pass
-4. Open a pull request with a clear description of the change
+- **Sentence case** for headings
+- Schema fields use **snake_case**
+- New optional fields are preferred over breaking changes
+- RFC 2119 keywords (MUST, SHOULD, MAY) used per the Introduction
 
 ## Licence
 

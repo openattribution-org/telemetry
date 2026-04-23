@@ -10,22 +10,22 @@ Content attribution tracks which content URLs an AI shopping agent retrieved and
 
 ## How It Complements `affiliate_attribution`
 
-ACP's existing `affiliate_attribution` handles network-level attribution with pre-wired publisher mappings. Content attribution provides the complementary content-level layer:
+ACP's existing `affiliate_attribution` handles network-level attribution with pre-wired content owner mappings. Content attribution provides the complementary content-level layer:
 
-- **`affiliate_attribution`**: "This purchase came through publisher X on network Y" (requires prior setup)
+- **`affiliate_attribution`**: "This purchase came through content owner X on network Y" (requires prior setup)
 - **`content_attribution`**: "The agent read and cited these URLs during the conversation" (no prior setup needed)
 
 Together they solve the bootstrapping problem for agentic commerce attribution.
 
-### URL-to-Publisher Resolution Flow
+### URL-to-content-owner resolution flow
 
 1. Agent retrieves content from various URLs during the shopping conversation
 2. Agent records retrieved and cited URLs in the `content_attribution` object
 3. Agent includes `content_attribution` in the ACP checkout request
 4. Merchant receives the checkout and forwards `content_attribution` to their affiliate network
-5. Affiliate network resolves content URLs against its publisher registry
-6. Network identifies which publishers created the cited content
-7. Standard affiliate commission crediting applies to the identified publishers
+5. Affiliate network resolves content URLs against its content owner registry
+6. Network identifies which content owners created the cited content
+7. Standard affiliate commission crediting applies to the identified content owners
 
 ## Directory Contents
 
@@ -38,6 +38,6 @@ Together they solve the bootstrapping problem for agentic commerce attribution.
 
 ## Links
 
-- [OpenAttribution Telemetry Specification v0.4](../SPECIFICATION.md)
+- [OpenAttribution Telemetry Specification v0.1](../SPECIFICATION.md)
 - [OpenAttribution Telemetry Repository](https://github.com/openattribution-org/telemetry)
 - [Agentic Commerce Protocol](https://www.agenticcommerce.dev/)

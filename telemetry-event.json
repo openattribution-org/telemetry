@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openattribution.org/schema/v0.1/telemetry-event.json",
+  "title": "OpenAttribution Telemetry Standalone Event",
+  "description": "Schema for standalone OpenAttribution telemetry events delivered outside a session document",
+  "type": "object",
+  "required": ["document_type", "schema_version", "event"],
+  "properties": {
+    "document_type": {
+      "type": "string",
+      "const": "event",
+      "description": "Document type discriminator. MUST be 'event' for standalone events."
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "0.1",
+      "description": "OpenAttribution schema version"
+    },
+    "session_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Session identifier. MAY be omitted by origin-side emitters with no session context. REQUIRED for emitters at Grounding conformance or above."
+    },
+    "agent_id": {
+      "type": "string",
+      "description": "Responding agent identifier. REQUIRED for emitters at Grounding conformance or above when using standalone event delivery. Mirrors the session-level agent_id field."
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Session start timestamp (UTC). Mirrors the session-level started_at field. REQUIRED for emitters at Grounding conformance or above when using standalone event delivery."
+    },
+    "event": {
+      "$ref": "telemetry-session.json#/$defs/TelemetryEvent",
+      "description": "The telemetry event"
+    }
+  }
+}

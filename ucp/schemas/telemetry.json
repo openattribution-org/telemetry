@@ -38,13 +38,7 @@
         "content_cited",
         "turn_started",
         "turn_completed",
-        "product_viewed",
-        "product_compared",
-        "cart_add",
-        "cart_remove",
-        "checkout_started",
-        "checkout_completed",
-        "checkout_abandoned"
+        "checkout_completed"
       ]
     },
 
@@ -227,7 +221,7 @@
       "properties": {
         "schema_version": {
           "type": "string",
-          "const": "0.4"
+          "const": "0.1"
         },
         "session_id": { "$ref": "#/$defs/uuid" },
         "initiator_type": { "$ref": "#/$defs/initiator_type" },
