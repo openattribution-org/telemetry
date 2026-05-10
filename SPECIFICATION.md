@@ -15,10 +15,11 @@ Content attribution - Signal format for AI agent interactions
 5. [Schema](#5-schema) — session, event, event types, conversation turn, privacy, intent, conformance levels
 6. [Data profiles](#6-data-profiles) — retrieval, edge enrichment, origin enrichment, grounding, citation, display, engagement
 7. [Transport](#7-transport) — delivery formats, OA-Telemetry-ID header, routing
-8. [Privacy](#8-privacy) — data minimisation, recommended levels, retention
-9. [Attribution](#9-attribution) — counting semantics, grounding without citation
-10. [Extensibility](#10-extensibility) — custom event metadata, intent categories, response modes
-11. [Versioning](#11-versioning)
+8. [Manifest](#8-manifest) — discovery, schema, operator, keys, telemetry, domains
+9. [Privacy](#9-privacy) — data minimisation, recommended levels, retention
+10. [Attribution](#10-attribution) — counting semantics, grounding without citation
+11. [Extensibility](#11-extensibility) — custom event metadata, intent categories, response modes
+12. [Versioning](#12-versioning)
 
 [Annex A](#annex-a-normative-json-schema) (normative) — JSON Schema
 [Annex B](#annex-b-informative-examples) (informative) — Examples
@@ -321,7 +322,7 @@ Additional content metadata — version, last-modified timestamp, content hash, 
 | `session_id` | UUID | Yes | Unique session identifier |
 | `agent_id` | string | No | Responding agent identifier |
 | `content_scope` | string | No | Opaque content collection identifier (see 5.1.1) |
-| `manifest_ref` | string | No | AIMS manifest reference (see 5.1.2) |
+| `manifest_ref` | string | No | Manifest reference (see 5.1.2 and section 8) |
 | `started_at` | datetime | Yes | Session start (UTC) |
 | `ended_at` | datetime | No | Session end (UTC) |
 | `conformance_level` | string | No | Informational conformance level advertised by the emitter (see section 5.7). Values: `retrieval`, `grounding`, `attribution` |
@@ -335,7 +336,7 @@ The `content_scope` field is an opaque identifier that groups sessions by their 
 | Implementation | Example value |
 |----------------|---------------|
 | Content platform | `"electronics-reviews"` |
-| AIMS-based system | `"did:aims:abc123"` |
+| Manifest-based system | `"did:web:example.com:agents:search"` |
 | API key scoped | API key identifier |
 | Agreement-based | Agreement or contract ID |
 
@@ -343,9 +344,9 @@ Attribution consumers can aggregate across sessions that share the same `content
 
 #### 5.1.2 Manifest reference
 
-The `manifest_ref` field optionally references an [AIMS](https://github.com/openattribution-org/aims) manifest, enabling consumers to verify that cited content was licensed at session time.
+The `manifest_ref` field optionally references an OpenAttribution manifest (section 8), identifying the participant and its declared telemetry endpoint at session time.
 
-Format: AIMS DID (e.g., `did:aims:abc123`) or URL to manifest.
+Format: the URL of a manifest served at `/.well-known/openattribution.json` under a path the participant controls.
 
 ### 5.2 Event
 
@@ -472,7 +473,7 @@ These are the core values. Extensions (e.g., the ACP extension's `price_check`, 
 
 Conformance to this specification is assessed by the event types an emitter produces and the requirements listed per conformance level below. The test suite in `tests/` provides an informative verification aid. The JSON Schema (`telemetry-session.json`) validates structure and types but cannot enforce all conformance rules — see section 5.7.4 for application-layer rules that require validation beyond JSON Schema.
 
-Emitters advertise one of three conformance levels. The authoritative declaration lives in the emitter's `.well-known/openattribution` manifest (for origin-side emitters) or AIMS registration (for agents). Emitters MAY also include an optional `conformance_level` field on individual session documents; when present it is informational and consumers MUST NOT treat it as a substitute for verifying the emitter's registered level.
+Emitters advertise one of three conformance levels. The authoritative declaration lives in the emitter's manifest (section 8). Emitters MAY also include an optional `conformance_level` field on individual session documents; when present it is informational and consumers MUST NOT treat it as a substitute for verifying the manifest's declaration.
 
 | Level | Events | What it proves | Typical emitter |
 |-------|--------|----------------|-----------------|
@@ -809,7 +810,7 @@ All three patterns consume the same session format. The attribution consumer is 
 
 #### Origin manifests
 
-Origin-side `.well-known/openattribution` manifests declare where origin-emitted retrieval events are sent (CDN to content owner's chosen endpoint). They do not instruct agents where to send session documents. Agent routing is governed by the agent's telemetry configuration, not by origin manifests.
+The `.well-known/openattribution.json` manifest (section 8) on a content owner's domain declares where origin-emitted retrieval events are sent. It does not instruct agents where to send session documents. Agent routing is governed by the agent's manifest, not by content owner manifests.
 
 #### Content owner resolution
 
@@ -823,16 +824,188 @@ Origin-side emitters and agent-side emitters MAY use different attribution consu
 
 The `oa_telemetry_id` field (section 7.2) correlates the same retrieval across consumers — both sides share the same UUID from the HTTP request. This correlation operates at the retrieval level only. Grounding, citation, and engagement events have no independent origin-side counterpart to correlate against.
 
-## 8. Privacy
+## 8. Manifest
 
-### 8.1 Data minimisation
+Content owners, agents, and platforms publish a manifest declaring their identity and telemetry endpoints. The `manifest_ref` field on session documents (5.1.2) and the routing logic for origin-side emitters (7.3) resolve to manifests defined in this section.
+
+### 8.1 Discovery
+
+Manifests are served as JSON at:
+
+```
+https://<domain>/.well-known/openattribution.json
+```
+
+A domain MAY publish additional manifests under path prefixes for agents or platform services it operates:
+
+```
+https://example.com/.well-known/openattribution.json                # domain manifest
+https://example.com/agents/search/.well-known/openattribution.json  # operated agent
+```
+
+Each manifest is self-contained at its own well-known URL.
+
+Trust derives from TLS and DNS control of the domain. Manifests are unsigned in v0.1.
+
+### 8.2 Schema
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `schema_version` | string | Yes | Manifest schema version. v0.1 emitters MUST use `"0.1"`. |
+| `id` | string | Yes | The manifest's canonical URL (e.g. `https://example.com/.well-known/openattribution.json`). |
+| `roles` | string[] | Yes | One or more of `content_owner`, `agent`, `platform`. |
+| `operator` | object | Yes | Operating organisation (see 8.3). |
+| `keys` | object[] | No | Public keys for signing telemetry events (see 8.4). |
+| `telemetry` | object | No | Telemetry endpoint declaration (see 8.5). |
+| `domains` | string[] | No | Domains the participant claims authority over (see 8.6). MAY appear only on root manifests. |
+
+Consumers MUST tolerate unknown fields and treat absent optional sections as "not declared" rather than rejecting the manifest.
+
+A manifest MAY declare multiple roles (e.g. `["content_owner", "agent"]`). A more common pattern for an organisation acting in multiple roles is two separate manifests on the same domain - one at the root for the content owner role, one under a path prefix for an operated agent - each with its own `telemetry.endpoint`.
+
+### 8.3 Operator
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Display name of the operating organisation. |
+| `domain` | string | No | Primary domain. Defaults to the manifest URL's host. |
+
+### 8.4 Keys
+
+Public keys used to sign telemetry events emitted by this participant. Per-event signing is informational in v0.1; consumers MAY verify signatures but are not required to.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | string | Yes | Key identifier, unique within the manifest. |
+| `type` | string | Yes | Key type. v0.1: `Ed25519`. |
+| `publicKey` | string | Yes | Multibase-encoded public key (multicodec prefix, base58btc - the same format as `did:key`). |
+| `expires` | datetime | No | ISO 8601 expiry. |
+
+### 8.5 Telemetry
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `endpoint` | string | Yes | HTTPS URL. For agents and platforms, the outbound submission endpoint. For content owners, the inbound destination for events about the content owner's content. |
+| `conformance_level` | string | No | One of `retrieval`, `grounding`, `attribution` (see 5.7). |
+
+### 8.6 Domains
+
+The `domains` array MAY appear only on manifests served from the domain root (`https://<domain>/.well-known/openattribution.json`). Manifests under path prefixes MUST NOT include `domains`.
+
+In v0.1, every entry in `domains` MUST be self-validating: either the manifest's own host, or a subdomain of it (literal `news.example.com` or wildcard `*.example.com`). Control of the apex - proven by serving the manifest at the apex over TLS - implies DNS control of subdomains, so no further validation is needed. A manifest containing entries that are not subdomains of its own host is malformed.
+
+This keeps the v0.1 protocol fully decentralised: every manifest is a self-contained credential, validated by TLS plus the well-known location, with no dependency on consumer-side validation state or any external registry. Cross-apex claims (one operator unifying several unrelated apex domains in a single manifest) are deferred to a later version.
+
+### 8.7 Consumer behaviour
+
+When resolving a manifest from `manifest_ref`, a `content_url` domain, or any other reference:
+
+- **404 or network error.** Treat the participant as unverified. Do not reject telemetry events on this basis alone.
+- **Invalid JSON or schema validation failure.** Reject the manifest. Treat the participant as unverified.
+- **Unknown `schema_version`.** During the v0.x preview period, consumers MUST accept only the exact same minor version. The semver-major compatibility rule applies from 1.0.0 onward (see section 12).
+- **Duplicate `keys[].id`.** Reject the manifest.
+- **`domains` entry that is not the manifest's host or a subdomain of it.** Reject the manifest as malformed (see 8.6).
+- **Missing `keys` on a manifest referenced by `manifest_ref`.** Not an error in v0.1, since signing is informational.
+
+Consumers SHOULD cache resolved manifests respecting the response's `Cache-Control` headers. Manifest hosts SHOULD set `Cache-Control: max-age=3600` during onboarding and `max-age=86400` steady-state.
+
+### 8.8 Examples
+
+**Content owner.**
+
+```json
+{
+  "schema_version": "0.1",
+  "id": "https://example.com/.well-known/openattribution.json",
+  "roles": ["content_owner"],
+  "operator": { "name": "Example Media" },
+  "telemetry": {
+    "endpoint": "https://api.openattribution.org/v1/events",
+    "conformance_level": "retrieval"
+  },
+  "domains": ["example.com", "*.example.com"]
+}
+```
+
+**Agent.**
+
+```json
+{
+  "schema_version": "0.1",
+  "id": "https://searchco.com/agents/web-search/.well-known/openattribution.json",
+  "roles": ["agent"],
+  "operator": { "name": "SearchCo" },
+  "keys": [
+    { "id": "key-1", "type": "Ed25519", "publicKey": "z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK" }
+  ],
+  "telemetry": {
+    "endpoint": "https://api.openattribution.org/v1/events",
+    "conformance_level": "grounding"
+  }
+}
+```
+
+**Mixed-role organisation - two manifests on one domain.** A publisher operating its own AI assistant publishes one manifest at the domain root for content ownership and a second under a path prefix for the agent it operates:
+
+```json
+// https://publisher.com/.well-known/openattribution.json
+{
+  "schema_version": "0.1",
+  "id": "https://publisher.com/.well-known/openattribution.json",
+  "roles": ["content_owner"],
+  "operator": { "name": "Publisher Co" },
+  "telemetry": {
+    "endpoint": "https://api.openattribution.org/v1/events",
+    "conformance_level": "retrieval"
+  },
+  "domains": ["publisher.com"]
+}
+```
+
+```json
+// https://publisher.com/agents/assistant/.well-known/openattribution.json
+{
+  "schema_version": "0.1",
+  "id": "https://publisher.com/agents/assistant/.well-known/openattribution.json",
+  "roles": ["agent"],
+  "operator": { "name": "Publisher Co" },
+  "keys": [
+    { "id": "key-1", "type": "Ed25519", "publicKey": "z6Mk..." }
+  ],
+  "telemetry": {
+    "endpoint": "https://api.openattribution.org/v1/events",
+    "conformance_level": "grounding"
+  }
+}
+```
+
+The two manifests live independently at distinct well-known URLs. The content-owner manifest's `domains` and `telemetry` apply to publisher.com's content; the agent manifest's `keys` and `telemetry` apply to events emitted by the assistant.
+
+### 8.9 Out of scope for v0.1
+
+The following are deferred to later versions:
+
+- Content licence declarations (what content the participant is licensed to access)
+- Manifest signing (W3C Verifiable Credentials, JWS proofs)
+- Training data and model provenance
+- Deployment context, purpose, brand affiliation
+- Revocation registries
+- Key rotation procedures beyond the `expires` field
+- `did:web` compatibility (the `id` field uses the manifest URL in v0.1)
+- Cross-apex claims (one operator unifying several unrelated apex domains in a single manifest)
+
+---
+
+## 9. Privacy
+
+### 9.1 Data minimisation
 
 Emitters SHOULD:
 
 - Use the minimum `privacy_level` necessary
 - Hash or anonymise identifiers where possible
 
-### 8.2 Recommended levels
+### 9.2 Recommended levels
 
 | Scenario | Recommended level |
 |----------|-------------------|
@@ -841,11 +1014,11 @@ Emitters SHOULD:
 | Third-party attribution | `intent` or `minimal` |
 | Public benchmarking | `minimal` |
 
-### 8.3 Retention
+### 9.3 Retention
 
 This specification does not mandate retention periods. Consumers SHOULD document their retention policies.
 
-## 9. Attribution
+## 10. Attribution
 
 This specification provides the telemetry data needed for attribution but does not mandate specific algorithms. Common approaches:
 
@@ -855,7 +1028,7 @@ This specification provides the telemetry data needed for attribution but does n
 - **Position-based** — weighted by position in journey
 - **SHAP-based** — game-theoretic contribution scores
 
-### 9.1 Counting semantics
+### 10.1 Counting semantics
 
 The schema records discrete events. A `content_grounded` event represents content entering the agent's context. A `content_cited` event represents content being explicitly referenced in a response. These are independent signals.
 
@@ -875,7 +1048,7 @@ Whether this constitutes one royalty event, three, or ten depends on the commerc
 
 The `content_grounded` event with `scope: session` plus the count of subsequent `turn_completed` events provides the inputs for all three models without requiring the schema to embed a commercial opinion.
 
-### 9.2 Grounding without citation
+### 10.2 Grounding without citation
 
 Content can influence every response in a session without being explicitly cited. A common royalty formula (individual content owner usage / total content owner usage x royalty rate) can be applied at any level of the funnel:
 
@@ -885,9 +1058,9 @@ Content can influence every response in a session without being explicitly cited
 
 Content owners and platforms should agree on which level to count at. The telemetry data supports all three; the choice is commercial, not technical.
 
-## 10. Extensibility
+## 11. Extensibility
 
-### 10.1 Custom event metadata
+### 11.1 Custom event metadata
 
 Implementations MAY extend core event types with custom fields in the `data` object:
 
@@ -904,7 +1077,7 @@ Implementations MAY extend core event types with custom fields in the `data` obj
 
 New event types (e.g., the ACP extension's `checkout_completed`) require a schema extension. The core schema validates only the event types listed in section 5.3.
 
-### 10.2 Custom intent categories
+### 11.2 Custom intent categories
 
 `query_intent` accepts custom string values beyond the core set. Extensions SHOULD namespace their values to avoid collisions (e.g., `price_check` for ACP). For ad-hoc categories that don't warrant a formal extension, use `other` with details in `topics`.
 
@@ -927,7 +1100,7 @@ Fallback example using `other`:
 }
 ```
 
-### 10.3 Custom response modes
+### 11.3 Custom response modes
 
 `response_mode` accepts custom string values beyond the recommended set:
 
@@ -942,7 +1115,7 @@ Fallback example using `other`:
 
 Attribution consumers MUST tolerate unknown `response_mode` values.
 
-## 11. Versioning
+## 12. Versioning
 
 Preview versions (0.x) use two-component version numbers. From 1.0.0 onward, versions follow [semantic versioning](https://semver.org/):
 
@@ -968,7 +1141,7 @@ A user asks a shopping assistant to compare noise-cancelling headphones. The age
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "agent_id": "shopping-assistant-v2",
   "content_scope": "electronics-reviews",
-  "manifest_ref": "did:aims:retailer-content-2026",
+  "manifest_ref": "https://retailer.com/agents/shopping-assistant/.well-known/openattribution.json",
   "started_at": "2026-01-15T10:30:00Z",
   "ended_at": "2026-01-15T10:35:00Z",
   "events": [
@@ -1269,5 +1442,4 @@ The following documents are referenced for information purposes.
 - [ISCC] International Standard Content Code (ISO 24138), https://www.iso.org/standard/88469.html
 - [C2PA] Coalition for Content Provenance and Authenticity, https://c2pa.org/
 - [Semantic Versioning] Semantic Versioning 2.0.0, https://semver.org/
-- [AIMS] Agent Identity and Manifest Specification, https://github.com/openattribution-org/aims
 - [CONSIDERATIONS] OpenAttribution Telemetry — Future considerations, ./CONSIDERATIONS.md

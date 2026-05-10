@@ -29,11 +29,11 @@ Items considered during v0.1 development and deferred for future versions. Each 
 
 **Motivation:** Marketplaces and attribution consumers need to identify which content owner owns a given piece of content. Currently, content owner identification requires inferring from `content_url` domain or `content_id` prefix, which breaks for syndicated content, marketplace APIs, and multi-domain content owners.
 
-**Why deferred:** Multiple content identification standards are in development ([ISCC/ISO 24138](https://www.iso.org/standard/88469.html), [C2PA](https://c2pa.org/), AIMS manifests, marketplace-specific schemes). Adding a content owner identity field to the telemetry schema would require choosing or accommodating these competing approaches. The telemetry spec should be agnostic to content identification schemes. Note: the `content_id` field already accepts any of these identifiers as values - this deferred item is specifically about a structured *content owner identity* field, not content identification itself.
+**Why deferred:** Multiple content identification standards are in development ([ISCC/ISO 24138](https://www.iso.org/standard/88469.html), [C2PA](https://c2pa.org/), marketplace-specific schemes). Adding a content owner identity field to the telemetry schema would require choosing or accommodating these competing approaches. The telemetry spec should be agnostic to content identification schemes. Note: the `content_id` field already accepts any of these identifiers as values - this deferred item is specifically about a structured *content owner identity* field, not content identification itself.
 
-**Current approach:** Content owners communicate their identity through `.well-known/openattribution` manifests, AIMS references (`manifest_ref`), or content access protocol metadata. Attribution consumers resolve content owner identity from these sources, not from the telemetry events themselves.
+**Current approach:** Content owners communicate their identity through manifests (section 8) and `manifest_ref` references on sessions, or content access protocol metadata. Attribution consumers resolve content owner identity from these sources, not from the telemetry events themselves.
 
-**Conditions for inclusion:** Revisit if a dominant content identification standard emerges and the market converges on a single scheme for content owner identity in telemetry contexts. Until then, identity resolution belongs in the access/identity layer (AIMS), not the telemetry layer.
+**Conditions for inclusion:** Revisit if a dominant content identification standard emerges and the market converges on a single scheme for content owner identity in telemetry contexts. Until then, identity resolution belongs in the manifest layer (section 8), not the event layer.
 
 ## Domain-specific intent categories
 
@@ -108,7 +108,7 @@ Items considered during v0.1 development and deferred for future versions. Each 
 
 **Motivation:** Content repositories (archives, academic repositories, government document stores) host content where the repository is not the rights holder. When a repository reports `content_retrieved` events with `source_role: origin`, there is no field to indicate who the actual rights holder is. The `content_url` resolves to the repository domain, not the creator.
 
-**Relationship to content owner identification:** This is a specific instance of the broader content owner identification problem (above). Repositories need to route usage telemetry to depositors and rights holders. The current approach (resolve identity from AIMS/manifests) works when the repository and the rights holder share an identity layer, but breaks when depositors are not registered in AIMS.
+**Relationship to content owner identification:** This is a specific instance of the broader content owner identification problem (above). Repositories need to route usage telemetry to depositors and rights holders. The current approach (resolve identity from manifests) works when the repository and the rights holder share an identity layer, but breaks when depositors do not publish manifests.
 
 **Conditions for inclusion:** Address alongside the broader content owner identification work. Repositories can use `content_id` with canonical identifiers (DOIs, ISCCs) as an interim approach - these resolve to the rights holder through existing identifier registries.
 
@@ -122,7 +122,7 @@ Items considered during v0.1 development and deferred for future versions. Each 
 
 ## Agent-to-agent sessions (`initiator_type`, `initiator`)
 
-**Motivation:** In multi-agent pipelines, the session initiator may be another AI agent rather than a human. Tracking the calling agent's identity (agent ID, AIMS manifest, operator) enables attribution in agent-to-agent delegation chains.
+**Motivation:** In multi-agent pipelines, the session initiator may be another AI agent rather than a human. Tracking the calling agent's identity (agent ID, manifest, operator) enables attribution in agent-to-agent delegation chains.
 
 **Proposed fields:** `initiator_type` (string, `"user"` or `"agent"`) and `initiator` (object with `agent_id`, `manifest_ref`, `operator_id`) on the session. When `initiator_type` is `"agent"`, the `initiator` object identifies the calling agent. The `prior_session_ids` field (see below) enables chain traversal.
 

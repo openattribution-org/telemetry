@@ -6,7 +6,7 @@ When an AI agent uses content to generate a response, five things can happen - a
 
 This is a preview specification. Field names, event types, and schema structure may change before 1.0.
 
-Part of the [OpenAttribution](https://openattribution.org) project. See also [AIMS](https://github.com/openattribution-org/aims) for agent identity and licensing.
+Part of the [OpenAttribution](https://openattribution.org) project. The manifest format used to identify content owners, agents, and platforms is defined in [section 8 of the specification](./SPECIFICATION.md#8-manifest).
 
 ## What is OpenAttribution Telemetry
 

@@ -20,7 +20,7 @@
     "conformance_level": {
       "type": "string",
       "enum": ["retrieval", "grounding", "attribution"],
-      "description": "Informational conformance level advertised by the emitter. The authoritative level is in the emitter's .well-known/openattribution manifest or AIMS registration. See section 5.7."
+      "description": "Informational conformance level advertised by the emitter. The authoritative level is declared in the emitter's manifest (section 8). See section 5.7."
     },
     "session_id": {
       "type": "string",
@@ -33,11 +33,11 @@
     },
     "content_scope": {
       "type": ["string", "null"],
-      "description": "Opaque content collection identifier (e.g., manifest DID, API key scope, agreement ID)"
+      "description": "Opaque content collection identifier (e.g., manifest URL, API key scope, agreement ID)"
     },
     "manifest_ref": {
       "type": ["string", "null"],
-      "description": "AIMS manifest reference for licensing verification (e.g., 'did:aims:abc123')"
+      "description": "OpenAttribution manifest reference - the URL of a manifest at /.well-known/openattribution.json. See section 8."
     },
     "started_at": {
       "type": "string",
