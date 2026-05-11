@@ -473,7 +473,7 @@ These are the core values. Extensions (e.g., the ACP extension's `price_check`, 
 
 Conformance to this specification is assessed by the event types an emitter produces and the requirements listed per conformance level below. The test suite in `tests/` provides an informative verification aid. The JSON Schema (`telemetry-session.json`) validates structure and types but cannot enforce all conformance rules — see section 5.7.4 for application-layer rules that require validation beyond JSON Schema.
 
-Emitters advertise one of three conformance levels. The authoritative declaration lives in the emitter's manifest (section 8). Emitters MAY also include an optional `conformance_level` field on individual session documents; when present it is informational and consumers MUST NOT treat it as a substitute for verifying the manifest's declaration.
+Emitters advertise one of three conformance levels. The authoritative declaration lives in the emitter's manifest (section 8). Emitters MAY also include an optional `conformance_level` field on individual session documents; when present it is informational and consumers MUST NOT treat it as a substitute for verifying the manifest's declaration. A `content_owner` manifest's `conformance_level`, where present, describes the owner's own emitter (e.g. an edge worker) — it is not a constraint on the inbound endpoint and not a requirement on agents (see 8.5).
 
 | Level | Events | What it proves | Typical emitter |
 |-------|--------|----------------|-----------------|
@@ -748,6 +748,8 @@ Session documents use `"document_type": "session"`. When `document_type` is abse
 
 For origin-side emitters at Retrieval conformance level, `session_id` MAY be omitted when the content owner has no session context. Attribution consumers correlate these events with agent-reported sessions using the `oa_telemetry_id` field.
 
+For `content_engaged` events emitted from a landing page after a click-out (typically by a content marketplace, affiliate network, or destination site), `session_id` MAY be replaced by a `ctx_token` field that carries an opaque click-token issued by the originating agent. Attribution consumers resolve the token to the owning session. This lets a downstream observer report a corroborating engagement event without sharing the session UUID across trust boundaries. An event MUST carry either `session_id` or `ctx_token` at Grounding conformance and above.
+
 The primary schema (`telemetry-session.json`) validates session documents. A standalone event envelope schema (`telemetry-event.json`) validates the event delivery format. Both schemas share the `TelemetryEvent` definition.
 
 #### Standalone event conformance constraints
@@ -886,7 +888,9 @@ Public keys used to sign telemetry events emitted by this participant. Per-event
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `endpoint` | string | Yes | HTTPS URL. For agents and platforms, the outbound submission endpoint. For content owners, the inbound destination for events about the content owner's content. |
-| `conformance_level` | string | No | One of `retrieval`, `grounding`, `attribution` (see 5.7). |
+| `conformance_level` | string | No | Conformance level advertised by this participant's own emitter(s). One of `retrieval`, `grounding`, `attribution` (see 5.7). |
+
+`conformance_level` is informational. It advertises the level of telemetry the manifest's participant emits. It does **not** constrain what an inbound `endpoint` accepts — an endpoint accepts whatever events it is configured to accept, regardless of any level declared here — and it places **no requirement** on other emitters. On a `content_owner` manifest it describes only the events the owner's own infrastructure emits (typically a CDN edge worker at `retrieval`); it says nothing about what agents or platforms report about the owner's content, which those parties advertise in their own manifests. A `content_owner` manifest SHOULD omit `conformance_level` unless the owner operates its own emitter. There is deliberately no field for a content owner to *request* a minimum level from agents; consumers tolerate events from any level (5.7.4), and the protocol does not give a manifest a way to demand more (see CONSIDERATIONS.md).
 
 ### 8.6 Domains
 
@@ -920,8 +924,7 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
   "roles": ["content_owner"],
   "operator": { "name": "Example Media" },
   "telemetry": {
-    "endpoint": "https://api.openattribution.org/v1/events",
-    "conformance_level": "retrieval"
+    "endpoint": "https://telemetry.example.com/v1/events"
   },
   "domains": ["example.com", "*.example.com"]
 }
@@ -939,7 +942,7 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
     { "id": "key-1", "type": "Ed25519", "publicKey": "z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK" }
   ],
   "telemetry": {
-    "endpoint": "https://api.openattribution.org/v1/events",
+    "endpoint": "https://telemetry.example.com/v1/events",
     "conformance_level": "grounding"
   }
 }
@@ -955,8 +958,7 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
   "roles": ["content_owner"],
   "operator": { "name": "Publisher Co" },
   "telemetry": {
-    "endpoint": "https://api.openattribution.org/v1/events",
-    "conformance_level": "retrieval"
+    "endpoint": "https://telemetry.example.com/v1/events"
   },
   "domains": ["publisher.com"]
 }
@@ -973,7 +975,7 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
     { "id": "key-1", "type": "Ed25519", "publicKey": "z6Mk..." }
   ],
   "telemetry": {
-    "endpoint": "https://api.openattribution.org/v1/events",
+    "endpoint": "https://telemetry.example.com/v1/events",
     "conformance_level": "grounding"
   }
 }

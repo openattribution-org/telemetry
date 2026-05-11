@@ -157,3 +157,13 @@ Items considered during v0.1 development and deferred for future versions. Each 
 **Why deferred:** Adding `content_scope` to events increases payload size for every event in every session, even when only one scope applies. The common case is one scope per session.
 
 **Conditions for inclusion:** Add when marketplace implementations demonstrate multi-agreement sessions as a common pattern rather than an edge case. Could be added as an optional event-level field without breaking changes.
+
+## Content-owner-requested conformance level
+
+**Motivation:** A content owner may want to signal that it expects (or would prefer) richer telemetry than bare `retrieval` - e.g. "I want grounding-level reporting on my content." The v0.1 `telemetry.conformance_level` field looks like it might serve this, but it does not: it advertises what the manifest's own participant emits, it is informational, and it cannot gate an inbound endpoint (which accepts whatever it is configured to accept) or bind other emitters.
+
+**Proposed field:** something like `telemetry.requested_level` on a `content_owner` manifest - a non-binding declaration of the level the owner would like agents to report at.
+
+**Design tension:** It conflicts with the tolerant-consumer model (5.7.4: consumers accept events from any level) and the decentralised manifest model (a manifest is a self-contained credential, not a policy others must honour). A "request" with no enforcement risks misleading owners into thinking it does something. If anything in this space is added, it likely belongs in the policy layer (alongside training/use permissions) rather than the telemetry manifest, and needs a clear story for who, if anyone, acts on it.
+
+**Conditions for inclusion:** Add only if content owners and at least one agent platform converge on a concrete workflow where a declared-but-non-binding requested level changes behaviour. Until then, `conformance_level` stays emitter-side and informational, and content-owner manifests SHOULD omit it.
