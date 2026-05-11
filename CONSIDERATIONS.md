@@ -2,6 +2,25 @@
 
 Items considered during v0.1 development and deferred for future versions. Each item includes the motivation, the design tension, and the conditions under which it would be added.
 
+## Index
+
+- [Share-of-voice denominator (`total_sources_grounded`)](#share-of-voice-denominator-total_sources_grounded) - the missing denominator for share-of-influence calculations
+- [Audit trail requirements](#audit-trail-requirements) - immutability, completeness detection, receipt timestamps for royalty audits
+- [Content owner identification](#content-owner-identification) - a structured content-owner identity field on events
+- [Domain-specific intent categories](#domain-specific-intent-categories) - vertical intent extensions for news, education, legal, etc.
+- [Grounding boundary definition](#grounding-boundary-definition) - where in a multi-stage pipeline grounding is counted
+- [Event volume and scale guidance](#event-volume-and-scale-guidance) - batching, sampling, aggregation for high-volume sessions
+- [Platform-reported grounding verification](#platform-reported-grounding-verification) - making self-reported grounding/citation counts credible
+- [Access-level signal on retrieval events](#access-level-signal-on-retrieval-events) - distinguishing authorised from unauthorised retrieval
+- [Cached grounding and licence validity windows](#cached-grounding-and-licence-validity-windows) - detecting cached use after licence expiry
+- [Content host versus rights holder](#content-host-versus-rights-holder) - repositories that host content they do not own
+- [Display duration measurement (`display_duration_ms`)](#display-duration-measurement-display_duration_ms) - dwell time on displayed content
+- [Agent-to-agent sessions (`initiator_type`, `initiator`)](#agent-to-agent-sessions-initiator_type-initiator) - attribution in multi-agent delegation chains
+- [Cross-session journey linking (`prior_session_ids`)](#cross-session-journey-linking-prior_session_ids) - end-to-end attribution across sessions
+- [User context (`user_context`)](#user-context-user_context) - user segmentation data on the session
+- [Event-level content scope](#event-level-content-scope) - per-event content scope for multi-agreement sessions
+- [Content-owner-requested conformance level](#content-owner-requested-conformance-level) - a non-binding requested level on content-owner manifests
+
 ## Share-of-voice denominator (`total_sources_grounded`)
 
 **Motivation:** Content owners cannot calculate their share of content influence without knowing the denominator - how many total sources were in context for a given turn. A content owner seeing "your article was grounded" cannot distinguish "1 of 2 sources" from "1 of 50 sources" without this count.

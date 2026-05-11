@@ -62,6 +62,8 @@ The grounding event captures the boundary "this content entered the agent's gene
 - [SPECIFICATION.md](./SPECIFICATION.md) - the full protocol specification
 - [telemetry-session.json](./telemetry-session.json) - JSON Schema for session documents
 - [telemetry-event.json](./telemetry-event.json) - JSON Schema for standalone event envelopes
+- [manifest.json](./manifest.json) - JSON Schema for the `.well-known/openattribution.json` manifest ([section 8](./SPECIFICATION.md#8-manifest))
+- [tests/](./tests/) - conformance test suite: valid/invalid fixtures plus `validate.py`
 - [CONSIDERATIONS.md](./CONSIDERATIONS.md) - deferred items under consideration for future versions
 - Adoption guides for content owners, platforms, marketplaces, and regulators live on [openattribution.org](https://openattribution.org)
 - [acp/](./acp/) - Agentic Commerce Protocol content attribution extension
@@ -238,7 +240,9 @@ Bracket a conversation turn. Carry conversation context at one of four privacy l
 
 ## What the data looks like
 
-The JSON session format is the wire format. But what consumers actually care about is a flat view they can query, export, or pipe into a dashboard. Here's what the same session from the quick example above looks like flattened.
+The spec defines a signal format, not a wire protocol - transport is left to implementers (HTTP postback, bulk upload, message queue, direct write). There are two delivery formats: the session document shown above (a complete session with nested events, validated by [telemetry-session.json](./telemetry-session.json)) and the standalone event envelope (one event plus a session reference, delivered as it occurs, validated by [telemetry-event.json](./telemetry-event.json)). Both carry the same event shapes; see [section 7.1](./SPECIFICATION.md#71-delivery-formats).
+
+What consumers actually care about is a flat view they can query, export, or pipe into a dashboard. Here's what the same session from the quick example above looks like flattened.
 
 ### Flat event log
 
@@ -300,10 +304,12 @@ OpenAttribution Telemetry is the **reporting** side. Content **access** protocol
 
 ## Implementations
 
-| Language | Package | Repo |
-|----------|---------|------|
-| Python | `openattribution-telemetry` | [telemetry-py](https://github.com/openattribution-org/telemetry-py) |
-| TypeScript | `@openattribution/telemetry` | [telemetry-js](https://github.com/openattribution-org/telemetry-js) |
+| Language | Package | Status | Source |
+|----------|---------|--------|--------|
+| TypeScript / JavaScript | [`@openattribution/telemetry`](https://www.npmjs.com/package/@openattribution/telemetry) | Published on npm | [openattribution-org/telemetry-js](https://github.com/openattribution-org/telemetry-js) |
+| Python | `openattribution-telemetry` | In progress, not yet on PyPI | [openattribution-org/telemetry-py](https://github.com/openattribution-org/telemetry-py) |
+
+SDK repos have their own release cadences and declare which spec version they support. Where no SDK exists yet, the schemas in this repo are the reference - any JSON Schema draft 2020-12 validator can check session documents, standalone events, and manifests against them (see "Validating an implementation" below). Implementations in other languages are welcome - open an issue if you're building one.
 
 ## Open questions in v0.1
 
@@ -318,6 +324,19 @@ This is a preview specification. Two areas are under active discussion and will 
 This repo tracks the specification version. SDK repos have their own release cadences and declare which spec version they support.
 
 Current spec version: **0.1** (preview)
+
+## Validating an implementation
+
+The repo ships a conformance test suite in [tests/](./tests/) - valid and invalid fixtures plus a runner:
+
+```sh
+pip install jsonschema
+python tests/validate.py
+```
+
+(`uvx --from jsonschema python tests/validate.py` or `uv pip install jsonschema` work too if you prefer `uv`.)
+
+Exit code 0 means every fixture behaved as expected: each file under `tests/valid/` validated, each file under `tests/invalid/` was rejected. The runner checks two things - JSON Schema validity against [telemetry-session.json](./telemetry-session.json), [telemetry-event.json](./telemetry-event.json), and [manifest.json](./manifest.json), and the application-layer rules that JSON Schema cannot express (privacy-level field gating - for example `query_text` MUST NOT appear on a turn at `minimal` or `intent` privacy). To check your own session documents, events, or manifests, validate them against the relevant schema with any JSON Schema draft 2020-12 validator.
 
 ## Get involved
 

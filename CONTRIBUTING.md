@@ -7,15 +7,15 @@ This repo contains the **specification** - the data model, event types, privacy 
 | File | Purpose |
 |------|---------|
 | [SPECIFICATION.md](./SPECIFICATION.md) | The normative specification |
-| [telemetry-session.json](./telemetry-session.json) | JSON Schema for validation |
+| [telemetry-session.json](./telemetry-session.json) | JSON Schema for session documents |
+| [telemetry-event.json](./telemetry-event.json) | JSON Schema for standalone event envelopes |
+| [manifest.json](./manifest.json) | JSON Schema for the `.well-known/openattribution.json` manifest |
 | [CONSIDERATIONS.md](./CONSIDERATIONS.md) | Deferred items under consideration for future versions |
 | [tests/](./tests/) | Conformance test suite |
 | [acp/](./acp/) | Agentic Commerce Protocol extension |
 | [ucp/](./ucp/) | Universal Commerce Protocol extension |
 
-For SDK contributions, see:
-- Python: [openattribution-org/telemetry-py](https://github.com/openattribution-org/telemetry-py)
-- TypeScript: [openattribution-org/telemetry-js](https://github.com/openattribution-org/telemetry-js)
+For SDK contributions, see [openattribution-org/telemetry-js](https://github.com/openattribution-org/telemetry-js) (TypeScript, published on npm as `@openattribution/telemetry`) and [openattribution-org/telemetry-py](https://github.com/openattribution-org/telemetry-py) (Python, in progress). Where no SDK exists yet, the JSON Schemas in this repo are the reference - validate against [telemetry-session.json](./telemetry-session.json), [telemetry-event.json](./telemetry-event.json), or [manifest.json](./manifest.json) with any JSON Schema draft 2020-12 validator.
 
 ## Proposing changes
 
@@ -24,10 +24,10 @@ Schema changes affect all implementations. Before submitting a PR:
 1. Open an issue describing the change and its motivation
 2. Reference the relevant section of SPECIFICATION.md
 3. Consider backwards compatibility - can existing consumers ignore new fields?
-4. Update both SPECIFICATION.md and telemetry-session.json
+4. Update SPECIFICATION.md and the affected JSON Schemas (`telemetry-session.json`, `telemetry-event.json`, `manifest.json`)
 5. Update extension schemas in `acp/` or `ucp/` if applicable
 6. Add or update test cases in `tests/` for any new fields or conformance rules
-7. Run `python tests/validate.py` to verify all tests pass
+7. Install the test dependency (`pip install jsonschema`) and run `python tests/validate.py` to verify all tests pass
 
 ## Conformance levels
 

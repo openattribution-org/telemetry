@@ -851,6 +851,8 @@ Trust derives from TLS and DNS control of the domain. Manifests are unsigned in 
 
 ### 8.2 Schema
 
+Machine-readable schema: [`./manifest.json`](./manifest.json) (JSON Schema draft 2020-12).
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `schema_version` | string | Yes | Manifest schema version. v0.1 emitters MUST use `"0.1"`. |

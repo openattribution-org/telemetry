@@ -2,8 +2,11 @@
 """
 Conformance test runner for OpenAttribution Telemetry Specification v0.1.
 
-Validates JSON test fixtures against telemetry-session.json and application-layer
-conformance rules that JSON Schema cannot express.
+Validates JSON test fixtures against telemetry-session.json, telemetry-event.json,
+manifest.json, and application-layer conformance rules that JSON Schema cannot
+express. Fixtures whose filename starts with "manifest-" are validated against
+manifest.json; fixtures with an "event" key are validated as standalone event
+envelopes; all others are validated as session documents.
 
 Usage:
     pip install jsonschema
@@ -96,8 +99,22 @@ def load_schema(schema_path):
     else:
         event_schema = None
 
+    # Load the manifest schema if present. Manifest fixtures are identified
+    # by a "manifest-" filename prefix and validated against this schema
+    # rather than the session/event schemas.
+    manifest_schema_path = schema_path.parent / "manifest.json"
+    if manifest_schema_path.exists():
+        with open(manifest_schema_path) as f:
+            manifest_schema = json.load(f)
+        manifest_schema_id = manifest_schema.get("$id", "")
+        manifest_resource = Resource.from_contents(manifest_schema)
+        registry = registry.with_resource(manifest_schema_id, manifest_resource)
+        manifest_validator = Draft202012Validator(manifest_schema, registry=registry)
+    else:
+        manifest_validator = None
+
     validator = Draft202012Validator(schema, registry=registry)
-    return schema, event_schema, validator, registry
+    return schema, event_schema, validator, manifest_validator, registry
 
 
 def load_test_file(path):
@@ -109,6 +126,11 @@ def load_test_file(path):
 def is_standalone_event(data):
     """Check if the test file is a standalone event envelope (has 'event' key)."""
     return "event" in data and isinstance(data["event"], dict)
+
+
+def is_manifest_fixture(path):
+    """Check if the test file is a manifest fixture (filename starts with 'manifest-')."""
+    return path.name.startswith("manifest-")
 
 
 def validate_standalone_event(data, session_schema, event_schema, registry):
@@ -164,7 +186,7 @@ def run_tests():
     valid_dir = tests_dir / "valid"
     invalid_dir = tests_dir / "invalid"
 
-    schema, event_schema, session_validator, registry = load_schema(schema_path)
+    schema, event_schema, session_validator, manifest_validator, registry = load_schema(schema_path)
 
     results = []
     passed = 0
@@ -180,7 +202,15 @@ def run_tests():
         name = path.name
         desc = data.get("_test_description", "")
 
-        if is_standalone_event(data):
+        if is_manifest_fixture(path):
+            if manifest_validator is None:
+                print(f"  FAIL  {name}")
+                print("        manifest.json schema not found alongside telemetry-session.json")
+                failed += 1
+                results.append((name, False, "manifest schema missing"))
+                continue
+            errors = list(manifest_validator.iter_errors(data))
+        elif is_standalone_event(data):
             # Standalone events validate against event envelope schema
             errors = validate_standalone_event(data, schema, event_schema, registry)
         else:
@@ -211,7 +241,15 @@ def run_tests():
 
         is_app_layer = name in APPLICATION_LAYER_VIOLATIONS
 
-        if is_standalone_event(data):
+        if is_manifest_fixture(path):
+            if manifest_validator is None:
+                print(f"  FAIL  {name}")
+                print("        manifest.json schema not found alongside telemetry-session.json")
+                failed += 1
+                results.append((name, False, "manifest schema missing"))
+                continue
+            schema_errors = list(manifest_validator.iter_errors(data))
+        elif is_standalone_event(data):
             schema_errors = validate_standalone_event(data, schema, event_schema, registry)
         else:
             schema_errors = list(session_validator.iter_errors(data))
