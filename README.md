@@ -159,6 +159,8 @@ Content fetched over HTTP. The only stage content owners can observe today (via 
 | `data.user_agent` | string | Request User-Agent header (edge/origin) |
 | `data.bot_category` | string | `training`, `inference`, `search` (edge) |
 | `data.bot_name` | string | Recognised bot family parsed from the UA, e.g. `Claude-User` (edge) |
+| `data.bot_client` | string | Specific client within the family, e.g. `claude-code` (edge) |
+| `data.bot_client_version` | string | Version paired with `bot_client` (edge) |
 | `data.verified` | boolean | Bot identity cryptographically verified (edge) |
 | `data.cache_status` | string | `hit`, `miss`, `bypass`, `dynamic` (edge) |
 | `data.response_status` | integer | HTTP response status code |
