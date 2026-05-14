@@ -198,6 +198,7 @@
                   "media_type": { "$ref": "#/$defs/MediaType" },
                   "user_agent": { "type": "string" },
                   "bot_category": { "type": "string", "description": "Edge platform's bot classification. Recommended values: training, inference, search" },
+                  "bot_name": { "type": "string", "description": "Recognised bot family parsed from the User-Agent (e.g., Claude-User, GPTBot, Perplexity-User). Stable across product variants within a vendor." },
                   "verified": { "type": "boolean" },
                   "cache_status": { "type": "string", "description": "Edge cache result. Recommended values: hit, miss, bypass, dynamic" },
                   "response_status": { "type": "integer", "minimum": 100, "maximum": 599 },

@@ -560,6 +560,7 @@ CDN and edge network integrations SHOULD include these fields:
 |-------|------|-------------|
 | `user_agent` | string | Request User-Agent header |
 | `bot_category` | string | Edge platform's bot classification (see below) |
+| `bot_name` | string | Recognised bot family parsed from the User-Agent (e.g., `Claude-User`, `GPTBot`, `Perplexity-User`) |
 | `verified` | boolean | Whether the bot identity was cryptographically verified |
 | `cache_status` | string | Edge cache result: `hit`, `miss`, `bypass`, `dynamic` |
 | `response_status` | integer | HTTP response status code |
@@ -1263,6 +1264,7 @@ A content owner's CDN detects an AI agent fetching content. The agent also repor
   "data": {
     "user_agent": "ClaudeBot/1.0",
     "bot_category": "inference",
+    "bot_name": "ClaudeBot",
     "verified": true,
     "cache_status": "miss",
     "response_status": 200,

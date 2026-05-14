@@ -11,6 +11,7 @@
     "data": {
       "user_agent": "PerplexityBot/1.0",
       "bot_category": "inference",
+      "bot_name": "PerplexityBot",
       "verified": false,
       "cache_status": "miss",
       "response_status": 200,
