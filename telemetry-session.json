@@ -199,6 +199,8 @@
                   "user_agent": { "type": "string" },
                   "bot_category": { "type": "string", "description": "Edge platform's bot classification. Recommended values: training, inference, search" },
                   "bot_name": { "type": "string", "description": "Recognised bot family parsed from the User-Agent (e.g., Claude-User, GPTBot, Perplexity-User). Stable across product variants within a vendor." },
+                  "bot_client": { "type": "string", "description": "Specific client product within the bot family, parsed from a parenthetical sub-identifier on the UA (e.g., 'claude-code' from 'Claude-User (claude-code/2.1.141; ...)')." },
+                  "bot_client_version": { "type": "string", "description": "Version of the bot_client, when present in the UA sub-identifier." },
                   "verified": { "type": "boolean" },
                   "cache_status": { "type": "string", "description": "Edge cache result. Recommended values: hit, miss, bypass, dynamic" },
                   "response_status": { "type": "integer", "minimum": 100, "maximum": 599 },

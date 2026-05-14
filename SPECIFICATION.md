@@ -560,7 +560,9 @@ CDN and edge network integrations SHOULD include these fields:
 |-------|------|-------------|
 | `user_agent` | string | Request User-Agent header |
 | `bot_category` | string | Edge platform's bot classification (see below) |
-| `bot_name` | string | Recognised bot family parsed from the User-Agent (e.g., `Claude-User`, `GPTBot`, `Perplexity-User`) |
+| `bot_name` | string | Recognised bot family parsed from the User-Agent (see [Bot family and client identification](#bot-family-and-client-identification)) |
+| `bot_client` | string | Specific client product within the bot family, parsed from a UA sub-identifier |
+| `bot_client_version` | string | Version of `bot_client`, when present in the UA sub-identifier |
 | `verified` | boolean | Whether the bot identity was cryptographically verified |
 | `cache_status` | string | Edge cache result: `hit`, `miss`, `bypass`, `dynamic` |
 | `response_status` | integer | HTTP response status code |
@@ -570,6 +572,14 @@ CDN and edge network integrations SHOULD include these fields:
 | `asn_org` | string | Client AS organisation name |
 | `country` | string | ISO 3166-1 alpha-2 country code |
 | `ip_hash` | string | SHA-256 of client IP (`sha256:{hex}`) |
+
+#### Bot family and client identification
+
+AI vendors increasingly emit compound user agents that combine a base bot family with a specific client product, using a parenthetical sub-identifier of the form `<family>/<version> (<client>/<client-version>; ...)`. The `bot_name` field carries the family. The `bot_client` and `bot_client_version` fields carry the specific product when the UA encodes one.
+
+For example, Anthropic emits `Claude-User/1.0` for fetches originating from the claude.ai web product and `Claude-User (claude-code/2.1.141; +https://support.anthropic.com/)` for fetches originating from the Claude Code developer tool. Both retrievals belong to the `Claude-User` family - the `bot_name` is the same - but they represent materially different content access patterns: a user-triggered citation lookup in the first case, an automated read by a coding agent in the second. The `bot_client` field carries the distinction (`claude-code`), enabling attribution consumers to segment them without inventing a new `bot_category` for every product variant.
+
+Emitters SHOULD populate `bot_client` when the UA encodes a recognisable parenthetical client identifier. Attribution consumers MUST tolerate absence of `bot_client` - many UAs name only the family.
 
 #### Bot categories
 

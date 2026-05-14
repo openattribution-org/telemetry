@@ -20,6 +20,7 @@ Items considered during v0.1 development and deferred for future versions. Each 
 - [User context (`user_context`)](#user-context-user_context) - user segmentation data on the session
 - [Event-level content scope](#event-level-content-scope) - per-event content scope for multi-agreement sessions
 - [Content-owner-requested conformance level](#content-owner-requested-conformance-level) - a non-binding requested level on content-owner manifests
+- [Developer-tool retrieval as a distinct bot category](#developer-tool-retrieval-as-a-distinct-bot-category) - whether inference fetches by coding agents warrant their own bot_category
 
 ## Share-of-voice denominator (`total_sources_grounded`)
 
@@ -186,3 +187,13 @@ Items considered during v0.1 development and deferred for future versions. Each 
 **Design tension:** It conflicts with the tolerant-consumer model (5.7.4: consumers accept events from any level) and the decentralised manifest model (a manifest is a self-contained credential, not a policy others must honour). A "request" with no enforcement risks misleading owners into thinking it does something. If anything in this space is added, it likely belongs in the policy layer (alongside training/use permissions) rather than the telemetry manifest, and needs a clear story for who, if anyone, acts on it.
 
 **Conditions for inclusion:** Add only if content owners and at least one agent platform converge on a concrete workflow where a declared-but-non-binding requested level changes behaviour. Until then, `conformance_level` stays emitter-side and informational, and content-owner manifests SHOULD omit it.
+
+## Developer-tool retrieval as a distinct bot category
+
+**Motivation:** The `inference` bot category was designed around the canonical case of a user asking a chatbot a question and the chatbot fetching content to cite back. A second access pattern is emerging that sits awkwardly in the same bucket: developer tools (Claude Code, Cursor, Devin, Replit Agent, Aider) that fetch content on behalf of a programmer working in an editor. Both are user-triggered and real-time, but the consumption profile differs - no end-user citation surface, content may be summarised or transformed into derivative code, and the volume per "session" can be much higher (an agentic coding run may fetch dozens of pages without ever surfacing them to a human).
+
+**Why the v0.1 answer is `bot_client`, not a new category:** Section 6.2 introduces `bot_name` / `bot_client` / `bot_client_version` so consumers can distinguish, for example, `Claude-User` family fetches from claude.ai (`bot_client` absent) versus Claude Code (`bot_client: claude-code`). This carries the signal without committing the standard to a categorisation that may not generalise across vendors.
+
+**Why not a new `bot_category` value yet:** The category enum (`training`, `inference`, `search`) maps cleanly to what edge platforms (Cloudflare, Fastly) already classify. Adding a fourth value such as `developer_tool` would either require edge platforms to support a parallel classification surface, or force the OA implementation to override edge classification based on UA inspection. Both options are heavier than the `bot_client` signal can justify without more telemetry data showing how developer-tool fetches behave at scale and how publishers want to handle them.
+
+**Conditions for inclusion:** Revisit when (a) edge platforms add a native developer-tool classification, (b) attribution consumers demonstrate a meaningful difference in how publishers want to treat these retrievals, or (c) vendors stop encoding the distinction in UA sub-identifiers and start emitting separate base UAs (which would make `bot_client` insufficient).
