@@ -6,7 +6,7 @@
     "type": "content_retrieved",
     "timestamp": "2026-03-28T08:15:00Z",
     "source_role": "edge",
-    "oa_telemetry_id": "990e8400-e29b-41d4-a716-446655440050",
+    "content_telemetry_id": "990e8400-e29b-41d4-a716-446655440050",
     "content_url": "https://www.bloomberg.com/news/2026-03-28-ftse-100-markets-live",
     "data": {
       "user_agent": "PerplexityBot/1.0",

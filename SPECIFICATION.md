@@ -14,7 +14,7 @@ Content attribution - Signal format for AI agent interactions
 4. [Concepts](#4-concepts) — sessions, event lifecycle, source roles, content identification
 5. [Schema](#5-schema) — session, event, event types, conversation turn, privacy, intent, conformance levels
 6. [Data profiles](#6-data-profiles) — retrieval, edge enrichment, origin enrichment, grounding, citation, display, engagement
-7. [Transport](#7-transport) — delivery formats, OA-Telemetry-ID header, routing
+7. [Transport](#7-transport) — delivery formats, Content-Telemetry-ID header, routing
 8. [Manifest](#8-manifest) — discovery, schema, operator, keys, telemetry, domains
 9. [Privacy](#9-privacy) — data minimisation, recommended levels, retention
 10. [Attribution](#10-attribution) — counting semantics, grounding without citation
@@ -275,13 +275,13 @@ A `content_retrieved` event can originate from multiple observers of the same re
 | `index` | Search index or content repository | An intermediary that served the content to the agent |
 | `agent` | AI agent | The agent itself, reporting content it fetched |
 
-The `origin` and `edge` source roles enable content owners to report AI agent traffic using their existing infrastructure, with no cooperation from the AI agent required. Content-owner emitters typically submit individual events rather than complete sessions, since they do not have visibility into the agent's session context. Attribution consumers correlate these standalone events with agent-reported sessions using the `oa_telemetry_id` field. Example B.2 demonstrates this pattern.
+The `origin` and `edge` source roles enable content owners to report AI agent traffic using their existing infrastructure, with no cooperation from the AI agent required. Content-owner emitters typically submit individual events rather than complete sessions, since they do not have visibility into the agent's session context. Attribution consumers correlate these standalone events with agent-reported sessions using the `content_telemetry_id` field. Example B.2 demonstrates this pattern.
 
 A marketplace operating as both emitter and attribution consumer receives telemetry from platforms (as a consumer), resolves content owner identity from `content_id` or `content_url`, and generates per-content-owner usage reports. The marketplace's own `source_role: index` events provide a corroboration layer — it can cross-reference what it served against what platforms reported using.
 
 `content_grounded`, `content_cited`, `content_displayed`, and `content_engaged` events are reported by the agent (or agent operator) only. These events describe what happened inside the agent or in the user interface, which is not observable from the content owner's infrastructure.
 
-When multiple observers report the same retrieval, events are correlated using the `OA-Telemetry-ID` header (see section 7.2). A retrieval corroborated by multiple sources is a stronger signal than either alone. An uncorroborated origin- or edge-reported retrieval (no matching agent event) may indicate a scraper that does not support the telemetry protocol, or missing header propagation.
+When multiple observers report the same retrieval, events are correlated using the `Content-Telemetry-ID` header (see section 7.2). A retrieval corroborated by multiple sources is a stronger signal than either alone. An uncorroborated origin- or edge-reported retrieval (no matching agent event) may indicate a scraper that does not support the telemetry protocol, or missing header propagation.
 
 ### 4.4 Content identification
 
@@ -357,7 +357,7 @@ Format: the URL of a manifest served at `/.well-known/openattribution.json` unde
 | `timestamp` | datetime | Yes | Event timestamp (UTC) |
 | `turn_id` | string | No | Associates this event with a conversation turn (see 5.2.1) |
 | `source_role` | SourceRole | No | Who is reporting: `origin`, `edge`, `index`, `agent` (see 4.3) |
-| `oa_telemetry_id` | UUID | No | Correlation ID for cross-observer deduplication (see 7.2) |
+| `content_telemetry_id` | UUID | No | Correlation ID for cross-observer deduplication (see 7.2) |
 | `content_url` | string | No | Content URL as fetched or canonical URL |
 | `content_id` | string | No | Content owner's stable content identifier (see 4.4) |
 | `license_ref` | string | No | Reference to the licence under which content was accessed |
@@ -376,7 +376,7 @@ Content events without a `turn_id` (e.g., `content_grounded` with `scope: sessio
 
 #### 5.2.2 Source role
 
-The `source_role` field SHOULD be set on `content_retrieved` events. When multiple systems observe the same retrieval, the `oa_telemetry_id` field correlates their events for deduplication.
+The `source_role` field SHOULD be set on `content_retrieved` events. When multiple systems observe the same retrieval, the `content_telemetry_id` field correlates their events for deduplication.
 
 #### 5.2.3 Licence reference
 
@@ -734,7 +734,7 @@ A standalone event carries `document_type`, `schema_version`, and optionally `se
     "type": "content_retrieved",
     "timestamp": "2026-01-15T10:30:01Z",
     "source_role": "edge",
-    "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
+    "content_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
     "content_url": "https://www.reuters.com/markets/abc123",
     "data": {
       "bot_category": "inference",
@@ -747,7 +747,7 @@ A standalone event carries `document_type`, `schema_version`, and optionally `se
 
 Session documents use `"document_type": "session"`. When `document_type` is absent, consumers SHOULD treat the document as a session (for backwards compatibility with pre-0.1 implementations).
 
-For origin-side emitters at Retrieval conformance level, `session_id` MAY be omitted when the content owner has no session context. Attribution consumers correlate these events with agent-reported sessions using the `oa_telemetry_id` field.
+For origin-side emitters at Retrieval conformance level, `session_id` MAY be omitted when the content owner has no session context. Attribution consumers correlate these events with agent-reported sessions using the `content_telemetry_id` field.
 
 For `content_engaged` events emitted from a landing page after a click-out (typically by a content marketplace, affiliate network, or destination site), `session_id` MAY be replaced by a `ctx_token` field that carries an opaque click-token issued by the originating agent. Attribution consumers resolve the token to the owning session. This lets a downstream observer report a corroborating engagement event without sharing the session UUID across trust boundaries. An event MUST carry either `session_id` or `ctx_token` at Grounding conformance and above.
 
@@ -761,33 +761,33 @@ Grounding and Attribution conformance require session-level fields (`session_id`
 
 Origin-side emitters (source role `origin` or `edge`) are not expected to achieve Grounding conformance and do not need these fields.
 
-### 7.2 OA-Telemetry-ID header
+### 7.2 Content-Telemetry-ID header
 
-When an AI agent fetches content over HTTP, it SHOULD include an `OA-Telemetry-ID` header containing a UUID:
+When an AI agent fetches content over HTTP, it SHOULD include an `Content-Telemetry-ID` header containing a UUID:
 
 ```
 GET /article/best-wireless-headphones HTTP/1.1
 Host: www.wirecutter.com
-OA-Telemetry-ID: 550e8400-e29b-41d4-a716-446655440000
+Content-Telemetry-ID: 550e8400-e29b-41d4-a716-446655440000
 ```
 
-The agent includes this same UUID as the `oa_telemetry_id` field on its `content_retrieved` event. If the content owner's infrastructure (origin server, edge layer) detects the header, it includes the same UUID on its own event.
+The agent includes this same UUID as the `content_telemetry_id` field on its `content_retrieved` event. If the content owner's infrastructure (origin server, edge layer) detects the header, it includes the same UUID on its own event.
 
 **Deduplication:**
 
-1. Group `content_retrieved` events by `oa_telemetry_id` + `content_url`
+1. Group `content_retrieved` events by `content_telemetry_id` + `content_url`
 2. Multiple events in a group represent one retrieval observed by multiple parties
-3. Events with no `oa_telemetry_id` are standalone
+3. Events with no `content_telemetry_id` are standalone
 
 The presence of the header signals that the requesting agent participates in the telemetry protocol. Its absence indicates the scraper is either unaware of the protocol or choosing not to participate. Content owners can use this distinction without blocking any traffic.
 
 #### Redirect chains
 
-HTTP clients typically do not forward custom headers through 301/302 redirects. When a retrieval involves redirects (e.g., from a short URL or paywall negotiation endpoint to the canonical URL), the content owner's origin or edge may not see the `OA-Telemetry-ID` header.
+HTTP clients typically do not forward custom headers through 301/302 redirects. When a retrieval involves redirects (e.g., from a short URL or paywall negotiation endpoint to the canonical URL), the content owner's origin or edge may not see the `Content-Telemetry-ID` header.
 
 Agents SHOULD re-attach the header on redirect requests to the same domain. For cross-domain redirects, agents MAY omit the header on the redirected request (the target domain may not be a telemetry participant).
 
-Content owners that rely on redirect-based routing SHOULD place telemetry instrumentation on the initial request handler, not only on the final origin. Content owners with redirect-based paywalls or authentication flows SHOULD instrument at the earliest point in the chain (the CDN edge, before any redirect) and SHOULD propagate the `OA-Telemetry-ID` value through their redirect chain as an internal parameter.
+Content owners that rely on redirect-based routing SHOULD place telemetry instrumentation on the initial request handler, not only on the final origin. Content owners with redirect-based paywalls or authentication flows SHOULD instrument at the earliest point in the chain (the CDN edge, before any redirect) and SHOULD propagate the `Content-Telemetry-ID` value through their redirect chain as an internal parameter.
 
 When the agent's reported `content_url` differs from the content owner's observed URL due to redirects, `content_id` provides a stable correlation alternative (see section 4.4).
 
@@ -825,7 +825,7 @@ Events identified only by `content_id` (e.g., cached groundings where the URL wa
 
 Origin-side emitters and agent-side emitters MAY use different attribution consumers. A content owner's CDN sends retrieval events to the OA public server; an agent sends sessions to its own consumer.
 
-The `oa_telemetry_id` field (section 7.2) correlates the same retrieval across consumers — both sides share the same UUID from the HTTP request. This correlation operates at the retrieval level only. Grounding, citation, and engagement events have no independent origin-side counterpart to correlate against.
+The `content_telemetry_id` field (section 7.2) correlates the same retrieval across consumers — both sides share the same UUID from the HTTP request. This correlation operates at the retrieval level only. Grounding, citation, and engagement events have no independent origin-side counterpart to correlate against.
 
 ## 8. Manifest
 
@@ -1165,7 +1165,7 @@ A user asks a shopping assistant to compare noise-cancelling headphones. The age
       "type": "content_retrieved",
       "timestamp": "2026-01-15T10:30:01Z",
       "source_role": "agent",
-      "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
+      "content_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
       "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones"
     },
     {
@@ -1238,7 +1238,7 @@ A user asks a shopping assistant to compare noise-cancelling headphones. The age
 
 ### B.2 Edge-reported retrieval with correlation
 
-A content owner's CDN detects an AI agent fetching content. The agent also reports the retrieval. Both events share the same `oa_telemetry_id`.
+A content owner's CDN detects an AI agent fetching content. The agent also reports the retrieval. Both events share the same `content_telemetry_id`.
 
 **Agent's event:**
 
@@ -1247,7 +1247,7 @@ A content owner's CDN detects an AI agent fetching content. The agent also repor
   "type": "content_retrieved",
   "timestamp": "2026-01-15T10:30:01Z",
   "source_role": "agent",
-  "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
+  "content_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
   "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones"
 }
 ```
@@ -1259,7 +1259,7 @@ A content owner's CDN detects an AI agent fetching content. The agent also repor
   "type": "content_retrieved",
   "timestamp": "2026-01-15T10:30:01Z",
   "source_role": "edge",
-  "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
+  "content_telemetry_id": "770e8400-e29b-41d4-a716-446655440300",
   "content_url": "https://www.wirecutter.com/reviews/best-wireless-headphones",
   "data": {
     "user_agent": "ClaudeBot/1.0",
@@ -1278,7 +1278,7 @@ A content owner's CDN detects an AI agent fetching content. The agent also repor
 }
 ```
 
-These share `oa_telemetry_id` and `content_url`, representing one corroborated retrieval from two observers.
+These share `content_telemetry_id` and `content_url`, representing one corroborated retrieval from two observers.
 
 ### B.3 Cached grounding
 

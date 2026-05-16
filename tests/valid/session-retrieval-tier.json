@@ -8,7 +8,7 @@
       "type": "content_retrieved",
       "timestamp": "2026-03-28T11:00:01Z",
       "source_role": "edge",
-      "oa_telemetry_id": "770e8400-e29b-41d4-a716-446655440001",
+      "content_telemetry_id": "770e8400-e29b-41d4-a716-446655440001",
       "content_url": "https://www.bloomberg.com/news/2026-03-28-ai-agents-roundup",
       "data": {
         "user_agent": "ClaudeBot/1.0",

@@ -84,10 +84,10 @@
           "$ref": "#/$defs/SourceRole",
           "description": "Who is reporting this event (see section 4.3). SHOULD be set on content_retrieved events."
         },
-        "oa_telemetry_id": {
+        "content_telemetry_id": {
           "type": ["string", "null"],
           "format": "uuid",
-          "description": "Correlation ID from the OA-Telemetry-ID HTTP header, used to deduplicate retrieval events reported by multiple observers"
+          "description": "Correlation ID from the Content-Telemetry-ID HTTP header, used to deduplicate retrieval events reported by multiple observers"
         },
         "content_url": {
           "type": ["string", "null"],

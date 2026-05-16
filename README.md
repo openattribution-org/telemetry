@@ -53,7 +53,7 @@ The grounding event captures the boundary "this content entered the agent's gene
 
 **Observable boundaries, not agent internals.** The five event types mark boundary crossings. What happens between them - the fan-out, relevance evaluation, re-ranking, reasoning chains - is internal to the agent and changes constantly. The spec does not model it.
 
-**Multiple observers, one event.** A content retrieval can be reported by the content owner's CDN, the content owner's origin server, and the AI agent independently. The `OA-Telemetry-ID` header correlates these into a single corroborated event. Uncorroborated retrievals (no matching agent event) may indicate an agent that does not yet support the telemetry protocol.
+**Multiple observers, one event.** A content retrieval can be reported by the content owner's CDN, the content owner's origin server, and the AI agent independently. The `Content-Telemetry-ID` header correlates these into a single corroborated event. Uncorroborated retrievals (no matching agent event) may indicate an agent that does not yet support the telemetry protocol.
 
 **Privacy by default.** Four privacy levels control what conversation data is shared: from `full` (query and response text) down to `minimal` (token counts and content URLs only).
 
@@ -147,12 +147,12 @@ Seven event types. The first five track content through the attribution funnel. 
 
 ### `content_retrieved`
 
-Content fetched over HTTP. The only stage content owners can observe today (via server logs or CDN). Multiple observers (edge, origin, agent) can report the same retrieval - the `oa_telemetry_id` header correlates them.
+Content fetched over HTTP. The only stage content owners can observe today (via server logs or CDN). Multiple observers (edge, origin, agent) can report the same retrieval - the `content_telemetry_id` header correlates them.
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `source_role` | string | Who reported: `origin`, `edge`, `index`, `agent` |
-| `oa_telemetry_id` | uuid | Correlation ID from the `OA-Telemetry-ID` HTTP header |
+| `content_telemetry_id` | uuid | Correlation ID from the `Content-Telemetry-ID` HTTP header |
 | `content_url` | uri | URL as fetched |
 | `content_id` | string | Stable content identifier (CMS ID, DOI, ISBN) |
 | `data.media_type` | string | `text`, `image`, `video`, `audio` |
