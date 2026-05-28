@@ -1,0 +1,24 @@
+{
+  "_test_description": "Standalone edge event with bot_client / bot_client_version populated from a compound UA. Demonstrates section 6.2 'Bot family and client identification': the bot_name carries the family (Claude-User), bot_client carries the specific product (claude-code). Same Claude-User family as claude.ai citations, but distinguishable for segmentation.",
+  "document_type": "event",
+  "schema_version": "0.1",
+  "event": {
+    "type": "content_retrieved",
+    "timestamp": "2026-05-14T22:37:09Z",
+    "source_role": "edge",
+    "content_telemetry_id": "990e8400-e29b-41d4-a716-446655440051",
+    "content_url": "https://openattribution.org/",
+    "data": {
+      "user_agent": "Claude-User (claude-code/2.1.141; +https://support.anthropic.com/)",
+      "bot_category": "inference",
+      "bot_name": "Claude-User",
+      "bot_client": "claude-code",
+      "bot_client_version": "2.1.141",
+      "verified": false,
+      "cache_status": "dynamic",
+      "response_status": 200,
+      "response_bytes": 91074,
+      "country": "GB"
+    }
+  }
+}
