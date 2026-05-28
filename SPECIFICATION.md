@@ -763,7 +763,7 @@ Origin-side emitters (source role `origin` or `edge`) are not expected to achiev
 
 ### 7.2 Content-Telemetry-ID header
 
-When an AI agent fetches content over HTTP, it SHOULD include an `Content-Telemetry-ID` header containing a UUID:
+When an AI agent fetches content over HTTP, it SHOULD include a `Content-Telemetry-ID` header containing a UUID:
 
 ```
 GET /article/best-wireless-headphones HTTP/1.1
