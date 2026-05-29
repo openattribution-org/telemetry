@@ -536,7 +536,8 @@ The following conformance rules cannot be expressed in JSON Schema and require a
 
 - At least one of `content_url` or `content_id` MUST be present on every content event
 - Fields above the advertised `privacy_level` MUST NOT be present on conversation turns
-- Conformance level requirements (sections 5.7.1–5.7.3) are cumulative
+- At Grounding conformance and above, an event MUST carry either `session_id` or `ctx_token` (see section 7.1)
+- Conformance level requirements (sections 5.7.1 to 5.7.3) are cumulative
 
 ## 6. Data profiles
 
@@ -711,6 +712,8 @@ The content URL is identified by the event-level `content_url` field (section 5.
 
 `link_click` is the primary signal for clickthrough rate calculation. Attribution consumers can derive per-content-owner and aggregate clickthrough rates from the ratio of `link_click` engagements to `content_displayed` events for the same `content_url`.
 
+A `link_click` engagement reported from the landing page after a click-out crosses a trust boundary. Such events carry a `ctx_token` in place of `session_id`, which the attribution consumer resolves to the originating session's click manifest (see section 7.1).
+
 ## 7. Transport
 
 This specification defines a signal format, not a wire protocol. Common delivery patterns include HTTP postback, bulk upload after session end, MCP tool calls, message queues (Kafka, SQS), and direct database writes. The choice of transport is left to implementers.
@@ -750,6 +753,8 @@ Session documents use `"document_type": "session"`. When `document_type` is abse
 For origin-side emitters at Retrieval conformance level, `session_id` MAY be omitted when the content owner has no session context. Attribution consumers correlate these events with agent-reported sessions using the `content_telemetry_id` field.
 
 For `content_engaged` events emitted from a landing page after a click-out (typically by a content marketplace, affiliate network, or destination site), `session_id` MAY be replaced by a `ctx_token` field that carries an opaque click-token issued by the originating agent. Attribution consumers resolve the token to the owning session. This lets a downstream observer report a corroborating engagement event without sharing the session UUID across trust boundaries. An event MUST carry either `session_id` or `ctx_token` at Grounding conformance and above.
+
+**ctx_token resolution.** An attribution consumer that supports `ctx_token` resolution exposes, for a resolved token, the **click manifest**: the set of `content_grounded`, `content_cited`, and `content_displayed` events belonging to the resolved session, identifying every source that informed the response that produced the click. The manifest is gated by the resolved session's `privacy_level` and by consent. A consumer MUST return the manifest only when the issuing agent has opted in to sharing sessions via click tokens and the content owner whose URLs appear has opted in to being visible in click-token lookups. When either opt-in is absent, the consumer MUST NOT disclose the manifest. The mechanism by which an agent and a content owner record these opt-ins is operator-defined; the consent gate is normative.
 
 The primary schema (`telemetry-session.json`) validates session documents. A standalone event envelope schema (`telemetry-event.json`) validates the event delivery format. Both schemas share the `TelemetryEvent` definition.
 
