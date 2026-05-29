@@ -62,7 +62,7 @@ The grounding event captures the boundary "this content entered the agent's gene
 - [SPECIFICATION.md](./SPECIFICATION.md) - the full protocol specification
 - [telemetry-session.json](./telemetry-session.json) - JSON Schema for session documents
 - [telemetry-event.json](./telemetry-event.json) - JSON Schema for standalone event envelopes
-- [manifest.json](./manifest.json) - JSON Schema for the `.well-known/openattribution.json` manifest ([section 8](./SPECIFICATION.md#8-manifest))
+- [manifest.json](./manifest.json) - JSON Schema for the `.well-known/content-telemetry.json` manifest ([section 8](./SPECIFICATION.md#8-manifest))
 - [tests/](./tests/) - conformance test suite: valid/invalid fixtures plus `validate.py`
 - [CONSIDERATIONS.md](./CONSIDERATIONS.md) - deferred items under consideration for future versions
 - Adoption guides for content owners, platforms, marketplaces, and regulators live on [openattribution.org](https://openattribution.org)

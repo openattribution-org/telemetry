@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openattribution.org/schema/v0.1/manifest.json",
   "title": "OpenAttribution Manifest",
-  "description": "Schema for the .well-known/openattribution.json manifest defined in section 8 of the OpenAttribution Telemetry specification. A manifest declares a participant's identity, roles, telemetry endpoint, signing keys, and claimed domains.",
+  "description": "Schema for the .well-known/content-telemetry.json manifest defined in section 8 of the OpenAttribution Telemetry specification. A manifest declares a participant's identity, roles, telemetry endpoint, signing keys, and claimed domains.",
   "type": "object",
   "required": ["schema_version", "id", "roles", "operator"],
   "properties": {
@@ -14,7 +14,7 @@
     "id": {
       "type": "string",
       "format": "uri",
-      "description": "The manifest's canonical URL, e.g. https://example.com/.well-known/openattribution.json. (Section 8.2)"
+      "description": "The manifest's canonical URL, e.g. https://example.com/.well-known/content-telemetry.json. (Section 8.2)"
     },
     "roles": {
       "type": "array",
