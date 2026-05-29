@@ -11,18 +11,18 @@ Content attribution - Signal format for AI agent interactions
 1. [Scope](#1-scope)
 2. [Normative references](#2-normative-references)
 3. [Terms and definitions](#3-terms-and-definitions)
-4. [Concepts](#4-concepts) — sessions, event lifecycle, source roles, content identification
-5. [Schema](#5-schema) — session, event, event types, conversation turn, privacy, intent, conformance levels
-6. [Data profiles](#6-data-profiles) — retrieval, edge enrichment, origin enrichment, grounding, citation, display, engagement
-7. [Transport](#7-transport) — delivery formats, Content-Telemetry-ID header, routing
-8. [Manifest](#8-manifest) — discovery, schema, operator, keys, telemetry, domains
-9. [Privacy](#9-privacy) — data minimisation, recommended levels, retention
-10. [Attribution](#10-attribution) — counting semantics, grounding without citation
-11. [Extensibility](#11-extensibility) — custom event metadata, intent categories, response modes
+4. [Concepts](#4-concepts) - sessions, event lifecycle, source roles, content identification
+5. [Schema](#5-schema) - session, event, event types, conversation turn, privacy, intent, conformance levels
+6. [Data profiles](#6-data-profiles) - retrieval, edge enrichment, origin enrichment, grounding, citation, display, engagement
+7. [Transport](#7-transport) - delivery formats, Content-Telemetry-ID header, routing
+8. [Manifest](#8-manifest) - discovery, schema, operator, keys, telemetry, domains
+9. [Privacy](#9-privacy) - data minimisation, recommended levels, retention
+10. [Attribution](#10-attribution) - counting semantics, grounding without citation
+11. [Extensibility](#11-extensibility) - custom event metadata, intent categories, response modes
 12. [Versioning](#12-versioning)
 
-[Annex A](#annex-a-normative-json-schema) (normative) — JSON Schema
-[Annex B](#annex-b-informative-examples) (informative) — Examples
+[Annex A](#annex-a-normative-json-schema) (normative) - JSON Schema
+[Annex B](#annex-b-informative-examples) (informative) - Examples
 [Bibliography](#bibliography)
 
 ## Introduction
@@ -69,9 +69,9 @@ The following documents are referred to in the text in such a way that some or a
 - **RFC 9562**, Universally Unique IDentifiers (UUIDs)
   https://www.rfc-editor.org/rfc/rfc9562
 
-- **ISO 8601**, Date and time — Representations for information interchange
+- **ISO 8601**, Date and time - Representations for information interchange
 
-- **ISO 3166-1**, Codes for the representation of names of countries and their subdivisions — Part 1: Country codes
+- **ISO 3166-1**, Codes for the representation of names of countries and their subdivisions - Part 1: Country codes
 
 - **JSON Schema**, draft 2020-12
   https://json-schema.org/draft/2020-12/json-schema-core
@@ -217,19 +217,19 @@ Session
 
 Content moves through five stages during an agent interaction:
 
-1. **Retrieved** — Content fetched over HTTP from an origin server, CDN, marketplace, or index. This is an infrastructure event observable by the content owner's infrastructure (origin server, edge network) and the agent. A retrieval may be cached by the agent for use across multiple sessions.
+1. **Retrieved** - Content fetched over HTTP from an origin server, CDN, marketplace, or index. This is an infrastructure event observable by the content owner's infrastructure (origin server, edge network) and the agent. A retrieval may be cached by the agent for use across multiple sessions.
 
-2. **Grounded** — Content loaded into the agent's generation context for this session or turn. The boundary is "this content entered the generation model's context" — the point where content can directly influence the model's output.
+2. **Grounded** - Content loaded into the agent's generation context for this session or turn. The boundary is "this content entered the generation model's context" - the point where content can directly influence the model's output.
 
    Content used only for retrieval selection (embedding similarity search, re-ranking scores, routing decisions) without entering the generation context is not grounded.
 
    Grounding is architecture-neutral: same event whether the agent uses RAG, chain-of-thought reasoning, embeddings, or multi-step delegation (see section 6.4 for architecture-specific guidance). Grounding is decoupled from retrieval: content may be grounded from a live fetch, from agent-side cache, or from a pre-loaded index. Only the agent can report grounding events.
 
-3. **Cited** — Content explicitly referenced in the agent's response: quoted, paraphrased, or linked. A subset of grounded content. Content can influence every response in a session without being cited once.
+3. **Cited** - Content explicitly referenced in the agent's response: quoted, paraphrased, or linked. A subset of grounded content. Content can influence every response in a session without being cited once.
 
-4. **Displayed** — A content reference shown to the end user: a link, snippet, inline quote, or preview card. Not all citations result in display (e.g., when the agent uses content internally without surfacing the source).
+4. **Displayed** - A content reference shown to the end user: a link, snippet, inline quote, or preview card. Not all citations result in display (e.g., when the agent uses content internally without surfacing the source).
 
-5. **Engaged** — The user interacted with displayed content: clicked a link, expanded a preview, copied text, or shared the response.
+5. **Engaged** - The user interacted with displayed content: clicked a link, expanded a preview, copied text, or shared the response.
 
 ```
 Retrieved (HTTP layer, cacheable)
@@ -259,8 +259,8 @@ Emitters SHOULD produce the events that reflect what actually happened, even whe
 
 Conversation turns (3.8) overlay this lifecycle:
 
-1. **Turn started** — user submits a query
-2. **Turn completed** — agent finishes response
+1. **Turn started** - user submits a query
+2. **Turn completed** - agent finishes response
 
 A single grounding event with session scope influences all subsequent turns. Citation, display, and engagement events occur within specific turns.
 
@@ -277,7 +277,7 @@ A `content_retrieved` event can originate from multiple observers of the same re
 
 The `origin` and `edge` source roles enable content owners to report AI agent traffic using their existing infrastructure, with no cooperation from the AI agent required. Content-owner emitters typically submit individual events rather than complete sessions, since they do not have visibility into the agent's session context. Attribution consumers correlate these standalone events with agent-reported sessions using the `content_telemetry_id` field. Example B.2 demonstrates this pattern.
 
-A marketplace operating as both emitter and attribution consumer receives telemetry from platforms (as a consumer), resolves content owner identity from `content_id` or `content_url`, and generates per-content-owner usage reports. The marketplace's own `source_role: index` events provide a corroboration layer — it can cross-reference what it served against what platforms reported using.
+A marketplace operating as both emitter and attribution consumer receives telemetry from platforms (as a consumer), resolves content owner identity from `content_id` or `content_url`, and generates per-content-owner usage reports. The marketplace's own `source_role: index` events provide a corroboration layer - it can cross-reference what it served against what platforms reported using.
 
 `content_grounded`, `content_cited`, `content_displayed`, and `content_engaged` events are reported by the agent (or agent operator) only. These events describe what happened inside the agent or in the user interface, which is not observable from the content owner's infrastructure.
 
@@ -302,7 +302,7 @@ Either field is sufficient. Both SHOULD be included when available.
 - Content was grounded from cache and the original URL was not preserved
 - The content owner needs to match telemetry to internal systems
 
-Emerging content identification standards — including [ISCC](https://www.iso.org/standard/88469.html) (ISO 24138, content-derived fingerprints) and [C2PA](https://c2pa.org/) (provenance manifests) — can be used as `content_id` values. The spec does not mandate a specific identifier scheme. Content owners communicate their scheme through structured data on the page, `.well-known/content-telemetry.json` manifests, content access protocol metadata, or HTTP response headers.
+Emerging content identification standards - including [ISCC](https://www.iso.org/standard/88469.html) (ISO 24138, content-derived fingerprints) and [C2PA](https://c2pa.org/) (provenance manifests) - can be used as `content_id` values. The spec does not mandate a specific identifier scheme. Content owners communicate their scheme through structured data on the page, `.well-known/content-telemetry.json` manifests, content access protocol metadata, or HTTP response headers.
 
 Repositories and mirrors SHOULD use the canonical content identifier from the original source as `content_id` (e.g., the original DOI, ISCC, or content-owner-assigned ID) rather than a repository-internal identifier, so that telemetry from multiple hosts of the same content can be correlated without requiring identifier translation.
 
@@ -310,7 +310,7 @@ When correlating events across observers (section 7.2), emitters SHOULD use the 
 
 When both `content_url` and `content_id` are present on events being correlated, `content_url` values MUST match exactly for URL-based correlation. When exact URL matching is unreliable, `content_id` provides a stable alternative.
 
-Additional content metadata — version, last-modified timestamp, content hash, media type — is carried in event data profiles (section 6) where its relevance varies by event type and source role.
+Additional content metadata - version, last-modified timestamp, content hash, media type - is carried in event data profiles (section 6) where its relevance varies by event type and source role.
 
 ## 5. Schema
 
@@ -471,9 +471,9 @@ These are the core values. Extensions (e.g., the ACP extension's `price_check`, 
 
 ### 5.7 Conformance levels
 
-Conformance to this specification is assessed by the event types an emitter produces and the requirements listed per conformance level below. The test suite in `tests/` provides an informative verification aid. The JSON Schema (`telemetry-session.json`) validates structure and types but cannot enforce all conformance rules — see section 5.7.4 for application-layer rules that require validation beyond JSON Schema.
+Conformance to this specification is assessed by the event types an emitter produces and the requirements listed per conformance level below. The test suite in `tests/` provides an informative verification aid. The JSON Schema (`telemetry-session.json`) validates structure and types but cannot enforce all conformance rules - see section 5.7.4 for application-layer rules that require validation beyond JSON Schema.
 
-Emitters advertise one of three conformance levels. The authoritative declaration lives in the emitter's manifest (section 8). Emitters MAY also include an optional `conformance_level` field on individual session documents; when present it is informational and consumers MUST NOT treat it as a substitute for verifying the manifest's declaration. A `content_owner` manifest's `conformance_level`, where present, describes the owner's own emitter (e.g. an edge worker) — it is not a constraint on the inbound endpoint and not a requirement on agents (see 8.5).
+Emitters advertise one of three conformance levels. The authoritative declaration lives in the emitter's manifest (section 8). Emitters MAY also include an optional `conformance_level` field on individual session documents; when present it is informational and consumers MUST NOT treat it as a substitute for verifying the manifest's declaration. A `content_owner` manifest's `conformance_level`, where present, describes the owner's own emitter (e.g. an edge worker) - it is not a constraint on the inbound endpoint and not a requirement on agents (see 8.5).
 
 | Level | Events | What it proves | Typical emitter |
 |-------|--------|----------------|-----------------|
@@ -581,7 +581,7 @@ The `bot_category` field carries the edge platform's classification of the reque
 | `inference` | Fetching at query time (RAG) | `AI-FETCHER` | `AI Assistant` |
 | `search` | AI search indexing | - | `AI Search` |
 
-The `inference` category is where content attribution is most relevant — there is a user, a query, and a session behind the retrieval. `training` crawls have no session context. The `bot_category` field on retrieval events can distinguish training crawls from inference fetches, but training-specific telemetry is out of scope for this specification. Edge platforms map their native classification to these values.
+The `inference` category is where content attribution is most relevant - there is a user, a query, and a session behind the retrieval. `training` crawls have no session context. The `bot_category` field on retrieval events can distinguish training crawls from inference fetches, but training-specific telemetry is out of scope for this specification. Edge platforms map their native classification to these values.
 
 ### 6.3 Origin enrichment (`content_retrieved` + `source_role: origin`)
 
@@ -616,9 +616,9 @@ For session-scoped grounding, the number of turns influenced is derivable from t
 
 #### Agent architecture and the grounding boundary
 
-The grounding event marks the point where content enters the generation model's context — the boundary where content can directly influence the model's output text. Content used only for retrieval selection (embedding similarity search, re-ranking, query routing) without entering the generation context is not grounded.
+The grounding event marks the point where content enters the generation model's context - the boundary where content can directly influence the model's output text. Content used only for retrieval selection (embedding similarity search, re-ranking, query routing) without entering the generation context is not grounded.
 
-In a pipeline that retrieves 100 articles, generates embeddings for all 100, re-ranks to 10, and places 5 in the generation prompt — the grounding count is 5. The 95 articles used only for selection are retrievals, not groundings. The 10 that survived re-ranking but were not placed in context are also retrievals, not groundings.
+In a pipeline that retrieves 100 articles, generates embeddings for all 100, re-ranks to 10, and places 5 in the generation prompt - the grounding count is 5. The 95 articles used only for selection are retrievals, not groundings. The 10 that survived re-ranking but were not placed in context are also retrievals, not groundings.
 
 The grounding event captures the same boundary regardless of agent architecture:
 
@@ -633,7 +633,7 @@ This boundary is deliberately drawn at the generation context, not at earlier pr
 
 #### Caching
 
-The `cached` field distinguishes live fetches from cached reuse. A live fetch produces both a `content_retrieved` and a `content_grounded` event. A cached grounding produces `content_grounded` only — there is no corresponding HTTP request for the content owner's infrastructure to observe.
+The `cached` field distinguishes live fetches from cached reuse. A live fetch produces both a `content_retrieved` and a `content_grounded` event. A cached grounding produces `content_grounded` only - there is no corresponding HTTP request for the content owner's infrastructure to observe.
 
 Attribution consumers may weight cached and live groundings differently. An agent may cache an article for days or weeks, grounding it in multiple sessions from a single retrieval. A single retrieval produces one `content_retrieved` event but potentially many `content_grounded` events across subsequent sessions.
 
@@ -645,7 +645,7 @@ Agents SHOULD preserve the `license_ref` from the original retrieval when emitti
 
 When content is grounded from cache, `content_last_modified` reflects when the source content was last modified, not when it was cached. Agents SHOULD preserve the `Last-Modified` header or equivalent metadata from the original retrieval.
 
-`content_hash` is the SHA-256 of the content as it entered the agent's context. When the agent ingests a chunk rather than the full document, this is the chunk hash, not the document hash. The same hash on a corresponding `content_cited` event identifies which grounded content was cited — it matches the grounding hash, not the full source document. Content owners can compare grounding hashes against known document or chunk hashes to detect truncation, modification, or stale content.
+`content_hash` is the SHA-256 of the content as it entered the agent's context. When the agent ingests a chunk rather than the full document, this is the chunk hash, not the document hash. The same hash on a corresponding `content_cited` event identifies which grounded content was cited - it matches the grounding hash, not the full source document. Content owners can compare grounding hashes against known document or chunk hashes to detect truncation, modification, or stale content.
 
 ### 6.5 Citation data (`content_cited`)
 
@@ -664,7 +664,7 @@ When content is grounded from cache, `content_last_modified` reflects when the s
 
 `excerpt_tokens` is the agent-native measurement. `excerpt_chars` provides the same information in a unit familiar to content owners and licensors. Emitters SHOULD include both when available.
 
-`excerpt_hash` is the SHA-256 of the excerpt text as it appears in the agent's response — the exact string the agent produced, not the source text it was derived from. For `direct_quote` citations, a matching hash against the source content confirms verbatim fidelity. For `paraphrase` citations, a non-matching hash is expected; verification tooling can use the hash to confirm which specific excerpt was cited and compare it against known source passages. Emitters SHOULD include `excerpt_hash` when `excerpt_tokens` or `excerpt_chars` is present. The hash uses the same `sha256:{hex}` format as `content_hash`.
+`excerpt_hash` is the SHA-256 of the excerpt text as it appears in the agent's response - the exact string the agent produced, not the source text it was derived from. For `direct_quote` citations, a matching hash against the source content confirms verbatim fidelity. For `paraphrase` citations, a non-matching hash is expected; verification tooling can use the hash to confirm which specific excerpt was cited and compare it against known source passages. Emitters SHOULD include `excerpt_hash` when `excerpt_tokens` or `excerpt_chars` is present. The hash uses the same `sha256:{hex}` format as `content_hash`.
 
 The `contradiction` type supports negative attribution: content that was retrieved but explicitly disagreed with should not receive positive credit.
 
@@ -797,9 +797,9 @@ The header creates a correlation point visible to the content owner's infrastruc
 
 ### 7.3 Routing and aggregation
 
-A single session typically contains events referencing content from multiple content owners. The agent cannot send the complete session to each content owner's endpoint individually — doing so would expose each content owner's content usage to the others (content owner A would see content owner B's content URLs in the same session).
+A single session typically contains events referencing content from multiple content owners. The agent cannot send the complete session to each content owner's endpoint individually - doing so would expose each content owner's content usage to the others (content owner A would see content owner B's content URLs in the same session).
 
-Agent emitters SHOULD send session documents to a single **attribution consumer** — an aggregation point that receives complete sessions and provides filtered views to individual content owners. The attribution consumer resolves content owner identity from `content_url` domains (via verified domain registrations) and exposes only the events relevant to each content owner.
+Agent emitters SHOULD send session documents to a single **attribution consumer** - an aggregation point that receives complete sessions and provides filtered views to individual content owners. The attribution consumer resolves content owner identity from `content_url` domains (via verified domain registrations) and exposes only the events relevant to each content owner.
 
 Three deployment patterns are anticipated:
 
@@ -825,7 +825,7 @@ Events identified only by `content_id` (e.g., cached groundings where the URL wa
 
 Origin-side emitters and agent-side emitters MAY use different attribution consumers. A content owner's CDN sends retrieval events to the OA public server; an agent sends sessions to its own consumer.
 
-The `content_telemetry_id` field (section 7.2) correlates the same retrieval across consumers — both sides share the same UUID from the HTTP request. This correlation operates at the retrieval level only. Grounding, citation, and engagement events have no independent origin-side counterpart to correlate against.
+The `content_telemetry_id` field (section 7.2) correlates the same retrieval across consumers - both sides share the same UUID from the HTTP request. This correlation operates at the retrieval level only. Grounding, citation, and engagement events have no independent origin-side counterpart to correlate against.
 
 ## 8. Manifest
 
@@ -893,7 +893,7 @@ Public keys used to sign telemetry events emitted by this participant. Per-event
 | `endpoint` | string | Yes | HTTPS URL. For agents and platforms, the outbound submission endpoint. For content owners, the inbound destination for events about the content owner's content. |
 | `conformance_level` | string | No | Conformance level advertised by this participant's own emitter(s). One of `retrieval`, `grounding`, `attribution` (see 5.7). |
 
-`conformance_level` is informational. It advertises the level of telemetry the manifest's participant emits. It does **not** constrain what an inbound `endpoint` accepts — an endpoint accepts whatever events it is configured to accept, regardless of any level declared here — and it places **no requirement** on other emitters. On a `content_owner` manifest it describes only the events the owner's own infrastructure emits (typically a CDN edge worker at `retrieval`); it says nothing about what agents or platforms report about the owner's content, which those parties advertise in their own manifests. A `content_owner` manifest SHOULD omit `conformance_level` unless the owner operates its own emitter. There is deliberately no field for a content owner to *request* a minimum level from agents; consumers tolerate events from any level (5.7.4), and the protocol does not give a manifest a way to demand more (see CONSIDERATIONS.md).
+`conformance_level` is informational. It advertises the level of telemetry the manifest's participant emits. It does **not** constrain what an inbound `endpoint` accepts - an endpoint accepts whatever events it is configured to accept, regardless of any level declared here - and it places **no requirement** on other emitters. On a `content_owner` manifest it describes only the events the owner's own infrastructure emits (typically a CDN edge worker at `retrieval`); it says nothing about what agents or platforms report about the owner's content, which those parties advertise in their own manifests. A `content_owner` manifest SHOULD omit `conformance_level` unless the owner operates its own emitter. There is deliberately no field for a content owner to *request* a minimum level from agents; consumers tolerate events from any level (5.7.4), and the protocol does not give a manifest a way to demand more (see CONSIDERATIONS.md).
 
 ### 8.6 Domains
 
@@ -1027,11 +1027,11 @@ This specification does not mandate retention periods. Consumers SHOULD document
 
 This specification provides the telemetry data needed for attribution but does not mandate specific algorithms. Common approaches:
 
-- **Last-touch** — credit to last content before session end
-- **First-touch** — credit to first content in session
-- **Linear** — equal credit to all content
-- **Position-based** — weighted by position in journey
-- **SHAP-based** — game-theoretic contribution scores
+- **Last-touch** - credit to last content before session end
+- **First-touch** - credit to first content in session
+- **Linear** - equal credit to all content
+- **Position-based** - weighted by position in journey
+- **SHAP-based** - game-theoretic contribution scores
 
 ### 10.1 Counting semantics
 
@@ -1124,9 +1124,9 @@ Attribution consumers MUST tolerate unknown `response_mode` values.
 
 Preview versions (0.x) use two-component version numbers. From 1.0.0 onward, versions follow [semantic versioning](https://semver.org/):
 
-- **Major** (1.0.0 → 2.0.0) — breaking changes to required fields
-- **Minor** (1.0.0 → 1.1.0) — new optional fields, new event types
-- **Patch** (1.0.0 → 1.0.1) — clarifications
+- **Major** (1.0.0 → 2.0.0) - breaking changes to required fields
+- **Minor** (1.0.0 → 1.1.0) - new optional fields, new event types
+- **Patch** (1.0.0 → 1.0.1) - clarifications
 
 Consumers SHOULD accept sessions with compatible minor versions.
 
@@ -1413,7 +1413,7 @@ An AI agent previously fetched a Reuters article and cached it. In a new session
 
 In this session:
 
-- 1 article grounded from cache (no `content_retrieved` event — the CDN saw nothing)
+- 1 article grounded from cache (no `content_retrieved` event - the CDN saw nothing)
 - 3 turns of conversation
 - 2 explicit citations (turns 1 and 2)
 - 1 display event (link shown in turn 1)
@@ -1424,7 +1424,7 @@ The content owner can derive: article `reuters:abc123` was in context for all tu
 
 ### B.4 Minimal privacy level
 
-The same turn from B.3 at `minimal` privacy. No intent, no topics, no platform metadata — only token counts and content URLs.
+The same turn from B.3 at `minimal` privacy. No intent, no topics, no platform metadata - only token counts and content URLs.
 
 ```json
 {
@@ -1448,4 +1448,4 @@ The following documents are referenced for information purposes.
 - [ISCC] International Standard Content Code (ISO 24138), https://www.iso.org/standard/88469.html
 - [C2PA] Coalition for Content Provenance and Authenticity, https://c2pa.org/
 - [Semantic Versioning] Semantic Versioning 2.0.0, https://semver.org/
-- [CONSIDERATIONS] OpenAttribution Telemetry — Future considerations, ./CONSIDERATIONS.md
+- [CONSIDERATIONS] OpenAttribution Telemetry - Future considerations, ./CONSIDERATIONS.md
