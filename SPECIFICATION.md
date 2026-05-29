@@ -11,7 +11,7 @@ Content attribution - Signal format for AI agent interactions
 1. [Scope](#1-scope)
 2. [Normative references](#2-normative-references)
 3. [Terms and definitions](#3-terms-and-definitions)
-4. [Concepts](#4-concepts) - sessions, event lifecycle, source roles, content identification
+4. [Concepts](#4-concepts) - roles, sessions, event lifecycle, source roles, content identification
 5. [Schema](#5-schema) - session, event, event types, conversation turn, privacy, intent, conformance levels
 6. [Data profiles](#6-data-profiles) - retrieval, edge enrichment, origin enrichment, grounding, citation, display, engagement
 7. [Transport](#7-transport) - delivery formats, Content-Telemetry-ID header, routing
@@ -188,7 +188,37 @@ opaque identifier grouping sessions (3.6) by their content access context
 
 ## 4. Concepts
 
-### 4.1 Sessions
+### 4.1 Roles
+
+Three economic actors participate, by position in the value chain:
+
+| Actor | Position | Description |
+|-------|----------|-------------|
+| **Content owner** | Supply | Owns or licences the content an agent uses: publishers, creators, and brands with owned content. |
+| **Intermediary** | Middle | Sits between content and agent: marketplaces, affiliate and ad networks, search indices, CDN and edge platforms, and attribution vendors. |
+| **Agent** | Demand | The AI agent, and the operator running it, that retrieves content and produces responses for an end user. |
+
+The **end user** is the human interacting with the agent. They are not a telemetry participant; no actor reports the end user's identity.
+
+Two further classifications cut across the actors and should not be confused with them:
+
+- **Function** is what a participant does with telemetry. An *emitter* produces events; an *attribution consumer* receives events or whole sessions, resolves content-owner identity, and exposes to each owner only its own events. A participant may be both, and any actor can run an attribution consumer: a content owner for its own events, an agent operator, or an intermediary offering it as a service (see section 7.3).
+- **Source role** is how a single event was observed, carried in the `source_role` field on `content_retrieved` events (`origin`, `edge`, `index`, `agent`; see section 4.4). It describes the observation, not the organisation.
+
+A participant therefore has one actor (who it is), one or more functions (what it does), and a source role per event (how it observed that event). An affiliate network, for example, is an intermediary that emits `index` events and also operates an attribution consumer; a CDN is an intermediary that emits `edge` events on a content owner's behalf.
+
+| Participant | Actor | Function | Source role |
+|-------------|-------|----------|-------------|
+| Publisher, creator | Content owner | Emitter; may self-host a consumer | `origin` |
+| CDN, edge platform | Intermediary | Emitter | `edge` |
+| Search index, repository | Intermediary | Emitter | `index` |
+| Marketplace, affiliate or ad network | Intermediary | Emitter and attribution consumer | `index` |
+| Attribution vendor | Intermediary | Attribution consumer | (consumes only) |
+| AI agent operator | Agent | Emitter; may self-host a consumer | `agent` |
+
+In the identity and onboarding layer, the three actors are represented by the org types `content_owner`, `platform`, and `agent`; `platform` is the intermediary's identity-layer label.
+
+### 4.2 Sessions
 
 A session (3.6) represents a bounded interaction between a user and a responding AI agent.
 
@@ -213,7 +243,7 @@ Session
 └── ended_at
 ```
 
-### 4.2 Event lifecycle
+### 4.3 Event lifecycle
 
 Content moves through five stages during an agent interaction:
 
@@ -264,7 +294,7 @@ Conversation turns (3.8) overlay this lifecycle:
 
 A single grounding event with session scope influences all subsequent turns. Citation, display, and engagement events occur within specific turns.
 
-### 4.3 Source roles
+### 4.4 Source roles
 
 A `content_retrieved` event can originate from multiple observers of the same retrieval. The `source_role` field identifies who is reporting:
 
@@ -283,7 +313,7 @@ A marketplace operating as both emitter and attribution consumer receives teleme
 
 When multiple observers report the same retrieval, events are correlated using the `Content-Telemetry-ID` header (see section 7.2). A retrieval corroborated by multiple sources is a stronger signal than either alone. An uncorroborated origin- or edge-reported retrieval (no matching agent event) may indicate a scraper that does not support the telemetry protocol, or missing header propagation.
 
-### 4.4 Content identification
+### 4.5 Content identification
 
 Events identify content using at least one of two fields:
 
@@ -356,10 +386,10 @@ Format: the URL of a manifest served at `/.well-known/content-telemetry.json` un
 | `type` | EventType | Yes | Event type (see 5.3) |
 | `timestamp` | datetime | Yes | Event timestamp (UTC) |
 | `turn_id` | string | No | Associates this event with a conversation turn (see 5.2.1) |
-| `source_role` | SourceRole | No | Who is reporting: `origin`, `edge`, `index`, `agent` (see 4.3) |
+| `source_role` | SourceRole | No | Who is reporting: `origin`, `edge`, `index`, `agent` (see 4.4) |
 | `content_telemetry_id` | UUID | No | Correlation ID for cross-observer deduplication (see 7.2) |
 | `content_url` | string | No | Content URL as fetched or canonical URL |
-| `content_id` | string | No | Content owner's stable content identifier (see 4.4) |
+| `content_id` | string | No | Content owner's stable content identifier (see 4.5) |
 | `license_ref` | string | No | Reference to the licence under which content was accessed |
 | `turn` | ConversationTurn | No | Conversation data (for turn events) |
 | `data` | object | No | Type-specific metadata (see section 6) |
@@ -794,7 +824,7 @@ Agents SHOULD re-attach the header on redirect requests to the same domain. For 
 
 Content owners that rely on redirect-based routing SHOULD place telemetry instrumentation on the initial request handler, not only on the final origin. Content owners with redirect-based paywalls or authentication flows SHOULD instrument at the earliest point in the chain (the CDN edge, before any redirect) and SHOULD propagate the `Content-Telemetry-ID` value through their redirect chain as an internal parameter.
 
-When the agent's reported `content_url` differs from the content owner's observed URL due to redirects, `content_id` provides a stable correlation alternative (see section 4.4).
+When the agent's reported `content_url` differs from the content owner's observed URL due to redirects, `content_id` provides a stable correlation alternative (see section 4.5).
 
 #### Privacy consideration
 
