@@ -82,7 +82,7 @@
         },
         "source_role": {
           "$ref": "#/$defs/SourceRole",
-          "description": "Who is reporting this event (see section 4.3). SHOULD be set on content_retrieved events."
+          "description": "Who is reporting this event (see section 4.4). SHOULD be set on content_retrieved events."
         },
         "content_telemetry_id": {
           "type": ["string", "null"],
@@ -96,7 +96,7 @@
         },
         "content_id": {
           "type": ["string", "null"],
-          "description": "Stable content identifier (CMS ID, DOI, ISBN, ISCC, C2PA manifest hash, or marketplace catalogue ID). See section 4.4."
+          "description": "Stable content identifier (CMS ID, DOI, ISBN, ISCC, C2PA manifest hash, or marketplace catalogue ID). See section 4.5."
         },
         "license_ref": {
           "type": ["string", "null"],
