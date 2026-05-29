@@ -37,7 +37,7 @@ Retrieved    →  content fetched over HTTP (content owner can see this today)
         Engaged  →  user clicked, expanded, copied, or shared
 ```
 
-Each stage is a progressively narrower subset. What ties them together is the **session** - a single user journey from query to outcome, identified by a session ID. The session ID is what travels from the agent to the landing page when a user clicks through. It is the thread that connects content to outcome.
+Each stage is a progressively narrower subset. What ties them together is the **session** - a single user journey from query to outcome, identified by a session ID. When a user clicks through to a landing page, the agent passes an opaque click-token (`ctx_token`) rather than the session ID itself, which an attribution consumer resolves back to the originating session. That token is the thread that connects content to outcome across the click-out boundary.
 
 The gaps between stages are where the interesting questions live:
 
