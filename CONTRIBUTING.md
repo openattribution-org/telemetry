@@ -9,7 +9,7 @@ This repo contains the **specification** - the data model, event types, privacy 
 | [SPECIFICATION.md](./SPECIFICATION.md) | The normative specification |
 | [telemetry-session.json](./telemetry-session.json) | JSON Schema for session documents |
 | [telemetry-event.json](./telemetry-event.json) | JSON Schema for standalone event envelopes |
-| [manifest.json](./manifest.json) | JSON Schema for the `.well-known/openattribution.json` manifest |
+| [manifest.json](./manifest.json) | JSON Schema for the `.well-known/content-telemetry.json` manifest |
 | [CONSIDERATIONS.md](./CONSIDERATIONS.md) | Deferred items under consideration for future versions |
 | [tests/](./tests/) | Conformance test suite |
 | [acp/](./acp/) | Agentic Commerce Protocol extension |

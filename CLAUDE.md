@@ -8,7 +8,7 @@ This is the **OpenAttribution Telemetry Specification** repo - not a code librar
 SPECIFICATION.md          Main spec document
 telemetry-session.json    JSON Schema for session documents (draft 2020-12)
 telemetry-event.json      JSON Schema for standalone event envelopes
-manifest.json             JSON Schema for the .well-known/openattribution.json manifest (section 8)
+manifest.json             JSON Schema for the .well-known/content-telemetry.json manifest (section 8)
 acp/                      Agent Content Protocol extension (content attribution RFC)
 ucp/                      Unified Content Protocol extension
 tests/                    Conformance test suite

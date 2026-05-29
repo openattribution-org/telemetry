@@ -37,7 +37,7 @@
     },
     "manifest_ref": {
       "type": ["string", "null"],
-      "description": "OpenAttribution manifest reference - the URL of a manifest at /.well-known/openattribution.json. See section 8."
+      "description": "OpenAttribution manifest reference - the URL of a manifest at /.well-known/content-telemetry.json. See section 8."
     },
     "started_at": {
       "type": "string",

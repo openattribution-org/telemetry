@@ -24,7 +24,7 @@ python validate.py
 - Enum validation (event types, privacy levels, schema version)
 - All three conformance levels (Retrieval, Grounding, Attribution)
 - Standalone event envelopes (CDN edge, agent with session FK)
-- Manifest documents (`.well-known/openattribution.json`, section 8) - fixtures named `manifest-*.json` validate against `manifest.json`
+- Manifest documents (`.well-known/content-telemetry.json`, section 8) - fixtures named `manifest-*.json` validate against `manifest.json`
 - Privacy level field gating (application-layer conformance)
 - Funnel exceptions (displayed-no-cited, cited-no-grounded)
 - Multi-turn sessions, cached grounding

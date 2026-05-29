@@ -302,7 +302,7 @@ Either field is sufficient. Both SHOULD be included when available.
 - Content was grounded from cache and the original URL was not preserved
 - The content owner needs to match telemetry to internal systems
 
-Emerging content identification standards — including [ISCC](https://www.iso.org/standard/88469.html) (ISO 24138, content-derived fingerprints) and [C2PA](https://c2pa.org/) (provenance manifests) — can be used as `content_id` values. The spec does not mandate a specific identifier scheme. Content owners communicate their scheme through structured data on the page, `.well-known/openattribution` manifests, content access protocol metadata, or HTTP response headers.
+Emerging content identification standards — including [ISCC](https://www.iso.org/standard/88469.html) (ISO 24138, content-derived fingerprints) and [C2PA](https://c2pa.org/) (provenance manifests) — can be used as `content_id` values. The spec does not mandate a specific identifier scheme. Content owners communicate their scheme through structured data on the page, `.well-known/content-telemetry.json` manifests, content access protocol metadata, or HTTP response headers.
 
 Repositories and mirrors SHOULD use the canonical content identifier from the original source as `content_id` (e.g., the original DOI, ISCC, or content-owner-assigned ID) rather than a repository-internal identifier, so that telemetry from multiple hosts of the same content can be correlated without requiring identifier translation.
 
@@ -344,9 +344,9 @@ Attribution consumers can aggregate across sessions that share the same `content
 
 #### 5.1.2 Manifest reference
 
-The `manifest_ref` field optionally references an OpenAttribution manifest (section 8), identifying the participant and its declared telemetry endpoint at session time.
+The `manifest_ref` field optionally references a manifest (section 8), identifying the participant and its declared telemetry endpoint at session time.
 
-Format: the URL of a manifest served at `/.well-known/openattribution.json` under a path the participant controls.
+Format: the URL of a manifest served at `/.well-known/content-telemetry.json` under a path the participant controls.
 
 ### 5.2 Event
 
@@ -813,7 +813,7 @@ All three patterns consume the same session format. The attribution consumer is 
 
 #### Origin manifests
 
-The `.well-known/openattribution.json` manifest (section 8) on a content owner's domain declares where origin-emitted retrieval events are sent. It does not instruct agents where to send session documents. Agent routing is governed by the agent's manifest, not by content owner manifests.
+The `.well-known/content-telemetry.json` manifest (section 8) on a content owner's domain declares where origin-emitted retrieval events are sent. It does not instruct agents where to send session documents. Agent routing is governed by the agent's manifest, not by content owner manifests.
 
 #### Content owner resolution
 
@@ -836,14 +836,14 @@ Content owners, agents, and platforms publish a manifest declaring their identit
 Manifests are served as JSON at:
 
 ```
-https://<domain>/.well-known/openattribution.json
+https://<domain>/.well-known/content-telemetry.json
 ```
 
 A domain MAY publish additional manifests under path prefixes for agents or platform services it operates:
 
 ```
-https://example.com/.well-known/openattribution.json                # domain manifest
-https://example.com/agents/search/.well-known/openattribution.json  # operated agent
+https://example.com/.well-known/content-telemetry.json                # domain manifest
+https://example.com/agents/search/.well-known/content-telemetry.json  # operated agent
 ```
 
 Each manifest is self-contained at its own well-known URL.
@@ -857,7 +857,7 @@ Machine-readable schema: [`./manifest.json`](./manifest.json) (JSON Schema draft
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `schema_version` | string | Yes | Manifest schema version. v0.1 emitters MUST use `"0.1"`. |
-| `id` | string | Yes | The manifest's canonical URL (e.g. `https://example.com/.well-known/openattribution.json`). |
+| `id` | string | Yes | The manifest's canonical URL (e.g. `https://example.com/.well-known/content-telemetry.json`). |
 | `roles` | string[] | Yes | One or more of `content_owner`, `agent`, `platform`. |
 | `operator` | object | Yes | Operating organisation (see 8.3). |
 | `keys` | object[] | No | Public keys for signing telemetry events (see 8.4). |
@@ -897,7 +897,7 @@ Public keys used to sign telemetry events emitted by this participant. Per-event
 
 ### 8.6 Domains
 
-The `domains` array MAY appear only on manifests served from the domain root (`https://<domain>/.well-known/openattribution.json`). Manifests under path prefixes MUST NOT include `domains`.
+The `domains` array MAY appear only on manifests served from the domain root (`https://<domain>/.well-known/content-telemetry.json`). Manifests under path prefixes MUST NOT include `domains`.
 
 In v0.1, every entry in `domains` MUST be self-validating: either the manifest's own host, or a subdomain of it (literal `news.example.com` or wildcard `*.example.com`). Control of the apex - proven by serving the manifest at the apex over TLS - implies DNS control of subdomains, so no further validation is needed. A manifest containing entries that are not subdomains of its own host is malformed.
 
@@ -923,7 +923,7 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
 ```json
 {
   "schema_version": "0.1",
-  "id": "https://example.com/.well-known/openattribution.json",
+  "id": "https://example.com/.well-known/content-telemetry.json",
   "roles": ["content_owner"],
   "operator": { "name": "Example Media" },
   "telemetry": {
@@ -938,7 +938,7 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
 ```json
 {
   "schema_version": "0.1",
-  "id": "https://searchco.com/agents/web-search/.well-known/openattribution.json",
+  "id": "https://searchco.com/agents/web-search/.well-known/content-telemetry.json",
   "roles": ["agent"],
   "operator": { "name": "SearchCo" },
   "keys": [
@@ -954,10 +954,10 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
 **Mixed-role organisation - two manifests on one domain.** A publisher operating its own AI assistant publishes one manifest at the domain root for content ownership and a second under a path prefix for the agent it operates:
 
 ```json
-// https://publisher.com/.well-known/openattribution.json
+// https://publisher.com/.well-known/content-telemetry.json
 {
   "schema_version": "0.1",
-  "id": "https://publisher.com/.well-known/openattribution.json",
+  "id": "https://publisher.com/.well-known/content-telemetry.json",
   "roles": ["content_owner"],
   "operator": { "name": "Publisher Co" },
   "telemetry": {
@@ -968,10 +968,10 @@ Consumers SHOULD cache resolved manifests respecting the response's `Cache-Contr
 ```
 
 ```json
-// https://publisher.com/agents/assistant/.well-known/openattribution.json
+// https://publisher.com/agents/assistant/.well-known/content-telemetry.json
 {
   "schema_version": "0.1",
-  "id": "https://publisher.com/agents/assistant/.well-known/openattribution.json",
+  "id": "https://publisher.com/agents/assistant/.well-known/content-telemetry.json",
   "roles": ["agent"],
   "operator": { "name": "Publisher Co" },
   "keys": [
@@ -1146,7 +1146,7 @@ A user asks a shopping assistant to compare noise-cancelling headphones. The age
   "session_id": "550e8400-e29b-41d4-a716-446655440000",
   "agent_id": "shopping-assistant-v2",
   "content_scope": "electronics-reviews",
-  "manifest_ref": "https://retailer.com/agents/shopping-assistant/.well-known/openattribution.json",
+  "manifest_ref": "https://retailer.com/agents/shopping-assistant/.well-known/content-telemetry.json",
   "started_at": "2026-01-15T10:30:00Z",
   "ended_at": "2026-01-15T10:35:00Z",
   "events": [

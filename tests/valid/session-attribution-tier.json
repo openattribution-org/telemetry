@@ -4,7 +4,7 @@
   "session_id": "660e8400-e29b-41d4-a716-446655440003",
   "agent_id": "shopping-assistant-v2",
   "content_scope": "electronics-reviews",
-  "manifest_ref": "https://retailer.com/agents/shopping-assistant/.well-known/openattribution.json",
+  "manifest_ref": "https://retailer.com/agents/shopping-assistant/.well-known/content-telemetry.json",
   "started_at": "2026-03-28T14:00:00Z",
   "ended_at": "2026-03-28T14:06:00Z",
   "events": [
