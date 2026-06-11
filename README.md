@@ -1,12 +1,20 @@
-# OpenAttribution Telemetry
+# OpenAttribution Telemetry (retired)
+
+> [!IMPORTANT]
+> **This repository is retired and kept for reference.** The specification became the neutral **Content Telemetry** standard, stewarded by the SPUR Coalition:
+>
+> - **The standard** (specification, schemas, conformance tests): [SPUR-Coalition/telemetry](https://github.com/SPUR-Coalition/telemetry) - schemas resolve at [contenttelemetry.org](https://contenttelemetry.org). Open for public comment 11 June to 10 July 2026.
+> - **Publisher profile**: [SPUR-Coalition/telemetry-profile](https://github.com/SPUR-Coalition/telemetry-profile)
+> - **OpenAttribution commerce profile and the ACP/UCP bindings** (previously in `acp/` and `ucp/` here): [openattribution-org/commerce-profile](https://github.com/openattribution-org/commerce-profile)
+> - **SDKs**: [telemetry-py](https://github.com/openattribution-org/telemetry-py), [telemetry-js](https://github.com/openattribution-org/telemetry-js)
+>
+> The contents below are the final pre-transfer state and are no longer maintained. OpenAttribution participates in the standard via public comment and maintains the commerce profile on it.
 
 **Open signal format for content use in AI systems.**
 
-When an AI agent uses content to generate a response, five things can happen - and today the content owner can only see one of them. OpenAttribution Telemetry defines a schema for tracking all five, across any content type and any kind of agent.
+When an AI agent uses content to generate a response, five things can happen - and today the content owner can only see one of them. This specification defines a schema for tracking all five, across any content type and any kind of agent.
 
-This is a preview specification. Field names, event types, and schema structure may change before 1.0.
-
-Part of the [OpenAttribution](https://openattribution.org) project. The manifest format used to identify content owners, agents, and platforms is defined in [section 8 of the specification](./SPECIFICATION.md#8-manifest).
+The manifest format used to identify content owners, agents, and platforms is defined in [section 8 of the specification](./SPECIFICATION.md#8-manifest).
 
 ## What is OpenAttribution Telemetry
 
