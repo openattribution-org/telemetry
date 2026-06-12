@@ -3,7 +3,7 @@
 > [!IMPORTANT]
 > **This repository is retired and kept for reference.** The specification became the neutral **Content Telemetry** standard, stewarded by the SPUR Coalition:
 >
-> - **The standard** (specification, schemas, conformance tests): [SPUR-Coalition/telemetry](https://github.com/SPUR-Coalition/telemetry) - schemas resolve at [contenttelemetry.org](https://contenttelemetry.org). Open for public comment 11 June to 10 July 2026.
+> - **The standard** (specification, schemas, conformance tests): [SPUR-Coalition/telemetry](https://github.com/SPUR-Coalition/telemetry) - schemas resolve at [contenttelemetry.org](https://contenttelemetry.org). Open for public comment 12 June to 10 July 2026.
 > - **Publisher profile**: [SPUR-Coalition/telemetry-profile](https://github.com/SPUR-Coalition/telemetry-profile)
 > - **OpenAttribution commerce profile and the ACP/UCP bindings** (previously in `acp/` and `ucp/` here): [openattribution-org/commerce-profile](https://github.com/openattribution-org/commerce-profile)
 > - **SDKs**: [telemetry-py](https://github.com/openattribution-org/telemetry-py), [telemetry-js](https://github.com/openattribution-org/telemetry-js)
